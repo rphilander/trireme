@@ -354,7 +354,7 @@
         <div class="fact"><dt>Agent</dt><dd>One pi session. Typed tools only — no shell, no generic file paths.</dd></div>
         <div class="fact"><dt>Output</dt><dd>TypeScript, ESM-only, zero runtime dependencies, packed as a tarball.</dd></div>
         <div class="fact"><dt>Limits</dt><dd>Cost in list-price dollars and wall-clock minutes, both hard.</dd></div>
-        <div class="fact"><dt>Verdict</dt><dd>Six outcome classes; infra aborts are distinguishable so a campaign can stop.</dd></div>
+        <div class="fact"><dt>Verdict</dt><dd>Seven outcome classes; infra aborts are distinguishable so a campaign can stop.</dd></div>
       </dl>
     </div>
   </section>
@@ -380,10 +380,12 @@
   <span class="key">"model"</span>: "anthropic/claude-opus-5",   <span class="cmt">provider/id, as pi resolves it</span>
   <span class="key">"thinking"</span>: "high",                  <span class="cmt">off|minimal|low|medium|high|xhigh|max</span>
 
-  <span class="key">"limits"</span>: {
+  <span class="key">"limits"</span>: {                         <span class="cmt">budgets — hitting one is a normal outcome</span>
     <span class="key">"costUsd"</span>: 5.00,
-    <span class="key">"wallClockMinutes"</span>: 30,
-    <span class="key">"maxIterations"</span>: 40             <span class="cmt">safety net, not a metric</span>
+    <span class="key">"wallClockMinutes"</span>: 30
+  },
+  <span class="key">"safety"</span>: {                         <span class="cmt">pathology detector — hitting one means something is wrong</span>
+    <span class="key">"maxIterations"</span>: 100
   },
 
   <span class="key">"dependencies"</span>: {},                 <span class="cmt">v1: empty. See “Dependencies”.</span>
@@ -396,9 +398,9 @@
 }</code></pre>
       <p>Every <code>limits</code> field and both model fields can be overridden per run from the CLI, so a manifest is a set of defaults, not a cage.</p>
 
-      <div class="call ask">
-        <span class="call-label">Needs your call</span>
-        <p><code>maxIterations</code> is a third limit you didn't ask for. Cost effectively bounds runaway loops already; this only catches the pathological case of an agent looping without spending. Keep it as a cheap backstop, or cut it to hold the line at two metrics?</p>
+      <div class="call">
+        <span class="call-label">Why two blocks</span>
+        <p>Cost and wall clock are <em>budgets</em>: hitting one means the job was too expensive for its allowance, which is ordinary information. <code>maxIterations</code> is a <em>safety net</em>: tripping it while still under budget means the loop is thrashing cheaply, which is a defect. Different meanings, so a different block, a default high enough that tripping it is genuinely anomalous, and its own outcome class.</p>
       </div>
 
       <h3>spec.md — required sections</h3>
@@ -545,7 +547,8 @@ its meaning.</code></pre>
             <tr><td><span class="chip ok">success</span></td><td class="num">0</td><td>Gate passed; tarball written.</td><td>continue</td></tr>
             <tr><td><span class="chip warn">failed:cost_cap</span></td><td class="num">1</td><td>Budget exhausted, tests still red.</td><td>continue</td></tr>
             <tr><td><span class="chip warn">failed:wall_clock</span></td><td class="num">1</td><td>Time cap hit, tests still red.</td><td>continue</td></tr>
-            <tr><td><span class="chip warn">failed:no_progress</span></td><td class="num">1</td><td>Three consecutive turns with no mutating tool call while red — or iteration cap reached.</td><td>continue</td></tr>
+            <tr><td><span class="chip warn">failed:no_progress</span></td><td class="num">1</td><td>Three consecutive turns with no mutating tool call while still red.</td><td>continue</td></tr>
+            <tr><td><span class="chip warn">failed:iteration_cap</span></td><td class="num">1</td><td>Safety net tripped: the loop kept turning without converging or exhausting a budget.</td><td>continue</td></tr>
             <tr><td><span class="chip bad">aborted:infra</span></td><td class="num">2</td><td>Provider outage, exhausted usage limits, auth or network failure — after pi's own retries.</td><td><strong>stop</strong></td></tr>
             <tr><td><span class="chip bad">error:usage</span></td><td class="num">3</td><td>Malformed job or flags. Never started.</td><td>stop and fix</td></tr>
           </tbody>
@@ -623,12 +626,60 @@ its meaning.</code></pre>
       <div class="flow">
         <div class="step"><span class="step-n">M0</span><span class="step-b"><b>Contract</b> — trireme's own <code>spec.md</code>, <code>index.d.ts</code> and acceptance suite, plus the sample job. You review the suite before implementation starts.</span></div>
         <div class="step"><span class="step-n">M1</span><span class="step-b"><b>Green</b> — pure core, then shell, then the loop. Ends when trireme builds the sample job end to end against a real model.</span></div>
-        <div class="step"><span class="step-n">M2</span><span class="step-b"><b>Dogfood</b> — promote pure-core modules to jobs and have trireme rebuild them. This is both the real end-to-end test and the first benchmark set for cost, wall clock and run-to-run variance.</span></div>
+        <div class="step"><span class="step-n">M2</span><span class="step-b"><b>Dogfood</b> — promote pure-core modules to jobs and have trireme rebuild them. This is both the real end-to-end test and a natural source of further rungs.</span></div>
         <div class="step"><span class="step-n">M3+</span><span class="step-b"><b>Later</b> — campaign runner, sub-agent delegation, registry publishing. Deliberately out of scope now; the ledger tree, test scoping and tool scoping already anticipate them.</span></div>
       </div>
 
-      <h3>The sample job</h3>
-      <p><code>semver-lite</code> — parse, compare and sort semantic versions, plus a small range subset. Pure, zero-dependency, unambiguous, and rich in edge cases (prerelease ordering, build metadata, numeric versus lexical identifier comparison). It is small enough to run cheaply and often, and nasty enough that a weak implementation fails honestly.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Benchmark</div>
+    <div class="body">
+      <h2>A ladder, not a smoke test</h2>
+      <p>Live runs are not there to verify correctness — the module suites and the scripted-agent pipeline test already do that, deterministically and for free. Live runs measure something else: <strong>how far trireme gets</strong> as a machine that turns a problem statement into a working package. So they belong in a benchmark that grows over time, where each new rung is expected to strain the harness somewhere and thereby tell us what to build next.</p>
+
+      <h3>Three test surfaces, three different claims</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Surface</th><th>Agent</th><th>Proves</th><th>Cost</th></tr></thead>
+          <tbody>
+            <tr><td>Module acceptance</td><td>none — effects injected</td><td>Each module does what its contract says.</td><td>free · ms</td></tr>
+            <tr><td>Pipeline playback</td><td>scripted <code>streamFn</code></td><td>The machine works end to end, including every failure path.</td><td>free · seconds</td></tr>
+            <tr><td>Benchmark rung</td><td>a real model</td><td>The actual claim — and where the harness strains.</td><td>real</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The first two run on every change. The third is invoked deliberately, and is the only surface that can reveal a model fighting the tool surface rather than using it.</p>
+
+      <h3>The axes a rung can vary</h3>
+      <p>Difficulty is not a scalar. A large-but-easy package and a small-but-hard one break completely different parts of the harness, which is what makes this a ladder rather than a pile.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Axis</th><th>Stresses</th><th>Expected first break</th></tr></thead>
+          <tbody>
+            <tr><td>API surface size</td><td>context, coordination</td><td>context management, compaction</td></tr>
+            <tr><td>Decomposition pressure</td><td>can it stay one file?</td><td>sub-agent delegation</td></tr>
+            <tr><td>Algorithmic depth</td><td>reasoning per unit of code</td><td>model and thinking level</td></tr>
+            <tr><td>State &amp; lifecycle</td><td>pure functions → stateful objects</td><td>spec and contract expressiveness</td></tr>
+            <tr><td>Spec judgment</td><td>how under-determined the prose is</td><td>the spec format itself</td></tr>
+            <tr><td>Failure-output volume</td><td>triaging many red tests at once</td><td>results formatting</td></tr>
+            <tr><td>Async / concurrency</td><td>a different failure surface</td><td>test running, timeouts</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Rung 1 — <code>semver-lite</code></h3>
+      <p>Parse, compare and sort semantic versions, plus a small range subset. Pure, zero-dependency, unambiguous, rich in edge cases — prerelease ordering, build metadata, numeric versus lexical identifier comparison. Small enough to run often, nasty enough that a weak implementation fails honestly. It anchors the simple end and nothing more.</p>
+
+      <div class="call">
+        <span class="call-label">Authoring cost, and the way around it</span>
+        <p>Rungs get more expensive to write as they get harder, because the acceptance suite is the load-bearing assumption and a robust suite for a complex package is harder to write than the package. The way through is to derive rungs from standards that already ship conformance corpora — semver's published vectors, RFC 4180 for CSV, RFC 6901/6902 for JSON Pointer and Patch, the well-known glob and diff suites. A rung built on a standard gets a high-quality suite nearly free, and “does it conform to the RFC” is exactly the kind of verdict this harness is built to render.</p>
+      </div>
+
+      <h3>What this requires of the report, today</h3>
+      <p>Comparison only works if every run emits the same record, so <code>report.json</code> carries not just the outcome and the ledger but full <strong>provenance</strong>: trireme version, system-prompt hash, model, thinking level, job hash. Without it the numbers stop being comparable the moment the prompt changes — and the most valuable comparisons are precisely the ones across harness versions. This is free now and awkward to retrofit.</p>
+      <p>It also gives the deferred campaign runner a concrete purpose: run rung <em>R</em>, <em>N</em> times, across <em>M</em> models, and emit the table. Run-to-run variance is a first-class measurement, not a nuisance.</p>
     </div>
   </section>
 
@@ -636,14 +687,7 @@ its meaning.</code></pre>
     <div class="eyebrow">Open</div>
     <div class="body">
       <h2>What I need from you</h2>
-      <div class="call ask">
-        <span class="call-label">Decide</span>
-        <p><strong>The iteration cap.</strong> Third limit as a backstop, or hold at two metrics? (§ Job format)</p>
-      </div>
-      <div class="call ask">
-        <span class="call-label">Decide</span>
-        <p><strong>A GitHub remote</strong>, or local-only for now? A remote needs an SSH key or <code>gh</code> on this box; local-only costs nothing and can be added whenever.</p>
-      </div>
+      <p>Settled since the first draft: the iteration cap stays, as a separate <code>safety</code> block with its own outcome class; a GitHub remote is deferred.</p>
       <div class="call ask">
         <span class="call-label">Do</span>
         <p><strong>Log pi in to your Claude account.</strong> Run <code>pi</code>, then <code>/login</code>. It's an OAuth flow, so copy the URL to your laptop's browser and paste the code back. <code>pi auth check --provider anthropic --json</code> currently reports <code>credentials_not_configured</code>; when it reports ready, the first live run is unblocked.</p>
