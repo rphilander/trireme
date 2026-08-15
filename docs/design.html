@@ -680,6 +680,18 @@ its meaning.</code></pre>
         <p>Rungs get more expensive to write as they get harder, because the acceptance suite is the load-bearing assumption and a robust suite for a complex package is harder to write than the package. The way through is to derive rungs from standards that already ship conformance corpora — semver's published vectors, RFC 4180 for CSV, RFC 6901/6902 for JSON Pointer and Patch, the well-known glob and diff suites. A rung built on a standard gets a high-quality suite nearly free, and “does it conform to the RFC” is exactly the kind of verdict this harness is built to render.</p>
       </div>
 
+      <h3>North star</h3>
+      <p>The far end of the ladder is a JavaScript interpreter written in JavaScript. It is the right target for the same reason the whole benchmark works: <strong>Test262</strong> already exists, so the acceptance suite comes from the standards body rather than from a model, and ECMA-262 is specified precisely enough that spec ambiguity drops out as a variable — leaving the harness itself as the thing being measured.</p>
+      <p>It also inverts one axis instructively. The public API is a single function; the internals are a lexer, a parser with automatic semicolon insertion, environment records, property descriptors, prototype chains, completion records, a job queue, generators, a regex engine. API surface and internal complexity come apart entirely, which makes this the rung that stresses decomposition hardest.</p>
+      <p>The route is itself a ladder — a small ES5-ish subset with no regex engine and no generators already exercises parser, scope and object model — and the interpreter decomposes naturally into separate jobs whose artifacts feed one another, which is where local-artifact dependencies earn their place. Trireme is measured by how far up this it can climb, not by whether it tops out.</p>
+
+      <div class="call">
+        <span class="call-label">Three assumptions this will break</span>
+        <p><strong>Binary done.</strong> Against 50,000 tests you never go from nothing to everything; you go from 12% to 40%. The answer is not to weaken the gate but to shrink the job: a rung <em>is</em> a conformance subset, chosen when the job is authored, and the verdict stays honest.</p>
+        <p><strong>One run, one session.</strong> A job at this scale spans many sessions and many budget refills, so runs eventually need to resume from a preserved workspace. Cheap to anticipate now, expensive to retrofit into the loop later.</p>
+        <p><strong>The agent can read its failures.</strong> Thousands of red tests at once is noise, not triage. Results have to cluster by error signature and sample representatives. This is the assumption most likely to break first — well before decomposition does.</p>
+      </div>
+
       <h3>What this requires of the report, today</h3>
       <p>Comparison only works if every run emits the same record, so <code>report.json</code> carries not just the outcome and the ledger but full <strong>provenance</strong>: trireme version, system-prompt hash, model, thinking level, job hash. Without it the numbers stop being comparable the moment the prompt changes — and the most valuable comparisons are precisely the ones across harness versions. This is free now and awkward to retrofit.</p>
       <p>It also gives the deferred campaign runner a concrete purpose: run rung <em>R</em>, <em>N</em> times, across <em>M</em> models, and emit the table. Run-to-run variance is a first-class measurement, not a nuisance.</p>
