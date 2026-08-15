@@ -388,20 +388,23 @@
     <span class="key">"maxIterations"</span>: 100
   },
 
-  <span class="key">"dependencies"</span>: {},                 <span class="cmt">v1: empty. See “Dependencies”.</span>
-
-  <span class="key">"paths"</span>: {                          <span class="cmt">optional; these are the defaults</span>
-    <span class="key">"spec"</span>: "spec.md",
-    <span class="key">"contract"</span>: "contract.d.ts",
-    <span class="key">"acceptance"</span>: "acceptance"
-  }
+  <span class="key">"dependencies"</span>: {}                  <span class="cmt">v1: empty. See “Dependencies”.</span>
 }</code></pre>
-      <p>Every <code>limits</code> field and both model fields can be overridden per run from the CLI, so a manifest is a set of defaults, not a cage.</p>
+      <p>Every <code>limits</code> and <code>safety</code> field, and both model fields, can be overridden per run from the CLI — a manifest is a set of defaults, not a cage. What is <em>not</em> configurable is where anything lives.</p>
+
+      <div class="call">
+        <span class="call-label">Layout is fixed, deliberately</span>
+        <p>Configurable paths exist so a tool can fit into a codebase it did not create. Trireme defines this format outright, so there is nothing to accommodate and the flexibility would only cost. A fixed layout means a job is verifiable by inspection, its tree hashes to a stable identity for benchmark provenance, and nothing in it can point outside itself. It also sharpens validation from “spec path not found” to “missing <code>spec.md</code>”. Since jobs are generated from a template and then reviewed rather than hand-assembled, every degree of freedom is one more way for a generator to be quietly wrong.</p>
+      </div>
 
       <div class="call">
         <span class="call-label">Why two blocks</span>
         <p>Cost and wall clock are <em>budgets</em>: hitting one means the job was too expensive for its allowance, which is ordinary information. <code>maxIterations</code> is a <em>safety net</em>: tripping it while still under budget means the loop is thrashing cheaply, which is a defect. Different meanings, so a different block, a default high enough that tripping it is genuinely anomalous, and its own outcome class.</p>
       </div>
+
+      <h3>Jobs are generated, then reviewed</h3>
+      <p>In practice a job is written by a model from a human's problem statement and then reviewed by a human — not assembled by hand. <code>trireme new &lt;name&gt;</code> emits the canonical skeleton so the structure is never invented, and the format is tuned for <strong>reviewability</strong>: fixed locations, required sections, everything where a reviewer expects to find it.</p>
+      <p>This puts weight on one place. The acceptance suite is the load-bearing assumption of the whole design, and if it is model-authored then human review is the only thing standing behind it. That is also the strongest argument for deriving benchmark rungs from standards that ship their own conformance corpora, where the suite's authority comes from an RFC rather than from a model.</p>
 
       <h3>spec.md — required sections</h3>
       <p>The harness validates that these H2 headings exist and are non-empty; a job missing one never starts. The list is deliberately short — it fixes <em>where to look</em>, not how much to write.</p>
