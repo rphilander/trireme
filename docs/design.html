@@ -1,0 +1,658 @@
+<title>Trireme Design</title>
+<style>
+  :root {
+    --ground: #F1F4F4;
+    --surface: #FFFFFF;
+    --surface-sunk: #E7ECEC;
+    --ink: #111A1D;
+    --ink-soft: #3C4B50;
+    --ink-mute: #62757B;
+    --rule: #CFD8D8;
+    --rule-soft: #E1E7E7;
+    --accent: #0D6B60;
+    --accent-soft: #DCEBE8;
+    --brass: #8C6716;
+    --brass-soft: #F3EAD4;
+    --oxide: #9E3629;
+    --oxide-soft: #F6E2DE;
+    --code-bg: #E9EEEE;
+
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+    --measure: 70ch;
+    --gutter: 8.5rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0E1417;
+      --surface: #161F23;
+      --surface-sunk: #121A1D;
+      --ink: #E4EDEF;
+      --ink-soft: #B7C6CA;
+      --ink-mute: #85989E;
+      --rule: #2A383D;
+      --rule-soft: #1E2A2E;
+      --accent: #4CB8AA;
+      --accent-soft: #14312E;
+      --brass: #D3A343;
+      --brass-soft: #2C2415;
+      --oxide: #E27F6E;
+      --oxide-soft: #331915;
+      --code-bg: #121A1D;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0E1417;
+    --surface: #161F23;
+    --surface-sunk: #121A1D;
+    --ink: #E4EDEF;
+    --ink-soft: #B7C6CA;
+    --ink-mute: #85989E;
+    --rule: #2A383D;
+    --rule-soft: #1E2A2E;
+    --accent: #4CB8AA;
+    --accent-soft: #14312E;
+    --brass: #D3A343;
+    --brass-soft: #2C2415;
+    --oxide: #E27F6E;
+    --oxide-soft: #331915;
+    --code-bg: #121A1D;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0 1.5rem 8rem;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: calc(var(--measure) + var(--gutter));
+    margin: 0 auto;
+  }
+
+  /* ---- masthead ---- */
+
+  .masthead {
+    padding: 4.5rem 0 2rem;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .wordmark {
+    font-family: var(--mono);
+    font-size: clamp(2.4rem, 7vw, 3.4rem);
+    font-weight: 600;
+    letter-spacing: -0.045em;
+    line-height: 1;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .wordmark .mark { color: var(--accent); }
+
+  .standfirst {
+    font-size: 1.075rem;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    max-width: 58ch;
+    margin: 0;
+  }
+
+  .stamp {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+  }
+
+  /* ---- sections with hanging eyebrow ---- */
+
+  section {
+    padding-top: 3.25rem;
+    display: grid;
+    grid-template-columns: var(--gutter) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    padding-top: 0.55rem;
+    border-top: 1px solid var(--rule);
+    margin-right: 2rem;
+  }
+
+  .body {
+    border-top: 1px solid var(--rule);
+    padding-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+    min-width: 0;
+  }
+
+  @media (max-width: 720px) {
+    section { grid-template-columns: minmax(0, 1fr); }
+    .eyebrow { border-top: 1px solid var(--rule); margin-right: 0; padding-bottom: 0.4rem; }
+    .body { border-top: none; padding-top: 0; }
+    :root { --gutter: 0rem; }
+  }
+
+  h2 {
+    font-family: var(--mono);
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  h3 {
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    margin: 0.9rem 0 0;
+    color: var(--ink);
+  }
+
+  p { margin: 0; max-width: var(--measure); }
+  .body > ul, .body > ol { margin: 0; padding-left: 1.15rem; max-width: var(--measure); }
+  li { margin-bottom: 0.35rem; }
+  li:last-child { margin-bottom: 0; }
+
+  strong { font-weight: 650; }
+  em { font-style: italic; color: var(--ink-soft); }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.855em;
+    background: var(--code-bg);
+    padding: 0.1em 0.34em;
+    border-radius: 2px;
+  }
+
+  pre {
+    font-family: var(--mono);
+    font-size: 0.795rem;
+    line-height: 1.55;
+    background: var(--surface);
+    border: 1px solid var(--rule-soft);
+    border-left: 2px solid var(--accent);
+    padding: 1rem 1.1rem;
+    margin: 0;
+    overflow-x: auto;
+    tab-size: 2;
+  }
+
+  pre code { background: none; padding: 0; font-size: inherit; }
+
+  .cmt { color: var(--ink-mute); }
+  .key { color: var(--accent); }
+
+  /* ---- tables ---- */
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--rule-soft); background: var(--surface); }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.875rem;
+    min-width: 30rem;
+  }
+
+  th {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    text-align: left;
+    font-weight: 500;
+    padding: 0.7rem 0.9rem;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 0.65rem 0.9rem;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  td code { font-size: 0.8rem; white-space: nowrap; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ---- callouts ---- */
+
+  .call {
+    border-left: 2px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 0.85rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .call.ask { border-left-color: var(--brass); background: var(--brass-soft); }
+
+  .call-label {
+    font-family: var(--mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .call.ask .call-label { color: var(--brass); }
+  .call p { font-size: 0.925rem; }
+
+  /* ---- summary grid ---- */
+
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    gap: 1px;
+    background: var(--rule-soft);
+    border: 1px solid var(--rule-soft);
+  }
+
+  .fact { background: var(--surface); padding: 0.85rem 1rem; display: flex; flex-direction: column; gap: 0.25rem; }
+
+  .fact dt {
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+
+  .fact dd { margin: 0; font-size: 0.9rem; line-height: 1.45; }
+
+  /* ---- outcome chips ---- */
+
+  .chip {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    padding: 0.12em 0.45em;
+    border-radius: 2px;
+    white-space: nowrap;
+    background: var(--surface-sunk);
+    color: var(--ink-soft);
+  }
+
+  .chip.ok { background: var(--accent-soft); color: var(--accent); }
+  .chip.warn { background: var(--brass-soft); color: var(--brass); }
+  .chip.bad { background: var(--oxide-soft); color: var(--oxide); }
+
+  /* ---- flow ---- */
+
+  .flow { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--rule-soft); background: var(--surface); }
+
+  .step { display: grid; grid-template-columns: 2.6rem minmax(0, 1fr); gap: 0.9rem; padding: 0.7rem 1rem; border-bottom: 1px solid var(--rule-soft); }
+  .step:last-child { border-bottom: none; }
+
+  .step-n {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--ink-mute);
+    padding-top: 0.16rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .step-b { font-size: 0.9rem; line-height: 1.5; }
+  .step-b b { font-family: var(--mono); font-weight: 600; font-size: 0.86rem; }
+  .loop { background: var(--surface-sunk); font-style: italic; color: var(--ink-soft); }
+
+  hr.rule { border: none; border-top: 1px solid var(--rule); margin: 0; }
+
+  a { color: var(--accent); text-underline-offset: 2px; }
+  a:focus-visible, :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="page">
+
+  <header class="masthead">
+    <h1 class="wordmark"><span class="mark">◣</span> Trireme</h1>
+    <p class="standfirst">A non-interactive agentic harness that builds a Node package from a specification and a robust acceptance suite — and stops on an objective verdict, a cost cap, or a clock.</p>
+    <div class="stamp">
+      <span>Design v0 · draft for review</span>
+      <span>2026-08-15</span>
+      <span>node 24.19.0 · pnpm 11.22.0 · pi 0.84.2</span>
+    </div>
+  </header>
+
+  <section>
+    <div class="eyebrow">At a glance</div>
+    <div class="body">
+      <p>Everything below follows from decisions already made. This section is the summary; the rest is the detail you'd need to author a job or review the implementation.</p>
+      <dl class="facts">
+        <div class="fact"><dt>Job</dt><dd>A directory: manifest, structured spec, <code>.d.ts</code> contract, vitest acceptance suite.</dd></div>
+        <div class="fact"><dt>Done</dt><dd>Acceptance tests pass · typecheck passes · package builds.</dd></div>
+        <div class="fact"><dt>Agent</dt><dd>One pi session. Typed tools only — no shell, no generic file paths.</dd></div>
+        <div class="fact"><dt>Output</dt><dd>TypeScript, ESM-only, zero runtime dependencies, packed as a tarball.</dd></div>
+        <div class="fact"><dt>Limits</dt><dd>Cost in list-price dollars and wall-clock minutes, both hard.</dd></div>
+        <div class="fact"><dt>Verdict</dt><dd>Six outcome classes; infra aborts are distinguishable so a campaign can stop.</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Job format</div>
+    <div class="body">
+      <h2>What you author</h2>
+      <p>A job is a directory. Nothing in it is generated; all four parts are written by a human (or by an upstream process) and are read-only to the agent.</p>
+      <pre><code>my-job/
+  trireme.json        <span class="cmt">manifest — identity, model, limits</span>
+  spec.md             <span class="cmt">structured prose — the authority on behaviour</span>
+  contract.d.ts       <span class="cmt">TypeScript declarations — the authority on shape</span>
+  acceptance/
+    *.test.ts         <span class="cmt">vitest — the authority on done</span></code></pre>
+
+      <h3>trireme.json</h3>
+      <pre><code>{
+  <span class="key">"name"</span>: "semver-lite",
+  <span class="key">"version"</span>: "0.1.0",
+  <span class="key">"description"</span>: "Parse, compare, and sort semantic versions.",
+
+  <span class="key">"model"</span>: "anthropic/claude-opus-5",   <span class="cmt">provider/id, as pi resolves it</span>
+  <span class="key">"thinking"</span>: "high",                  <span class="cmt">off|minimal|low|medium|high|xhigh|max</span>
+
+  <span class="key">"limits"</span>: {
+    <span class="key">"costUsd"</span>: 5.00,
+    <span class="key">"wallClockMinutes"</span>: 30,
+    <span class="key">"maxIterations"</span>: 40             <span class="cmt">safety net, not a metric</span>
+  },
+
+  <span class="key">"dependencies"</span>: {},                 <span class="cmt">v1: empty. See “Dependencies”.</span>
+
+  <span class="key">"paths"</span>: {                          <span class="cmt">optional; these are the defaults</span>
+    <span class="key">"spec"</span>: "spec.md",
+    <span class="key">"contract"</span>: "contract.d.ts",
+    <span class="key">"acceptance"</span>: "acceptance"
+  }
+}</code></pre>
+      <p>Every <code>limits</code> field and both model fields can be overridden per run from the CLI, so a manifest is a set of defaults, not a cage.</p>
+
+      <div class="call ask">
+        <span class="call-label">Needs your call</span>
+        <p><code>maxIterations</code> is a third limit you didn't ask for. Cost effectively bounds runaway loops already; this only catches the pathological case of an agent looping without spending. Keep it as a cheap backstop, or cut it to hold the line at two metrics?</p>
+      </div>
+
+      <h3>spec.md — required sections</h3>
+      <p>The harness validates that these H2 headings exist and are non-empty; a job missing one never starts. The list is deliberately short — it fixes <em>where to look</em>, not how much to write.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Section</th><th>Carries</th></tr></thead>
+          <tbody>
+            <tr><td><code>## Purpose</code></td><td>What the package is for, in a paragraph. Orientation, not requirements.</td></tr>
+            <tr><td><code>## Public API</code></td><td>Each export in prose: what it does, what it returns, what it throws. The contract fixes the shape; this fixes the meaning.</td></tr>
+            <tr><td><code>## Behavior</code></td><td>The rules, including edge cases and error conditions. The substance of the spec.</td></tr>
+            <tr><td><code>## Constraints</code></td><td>Invariants that hold across the API — input immutability, complexity bounds, determinism.</td></tr>
+            <tr><td><code>## Non-goals</code></td><td>Explicitly out of scope, so the agent doesn't build it.</td></tr>
+            <tr><td><code>## Examples</code></td><td>Optional. Illustrative usage; not a substitute for the acceptance suite.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>The contract, and how conformance is checked</h3>
+      <p><code>contract.d.ts</code> declares the public API exactly. The harness generates a conformance module that asserts assignability in <em>both</em> directions — the implementation provides everything the contract declares, and exports nothing beyond it. It is typechecked, never executed.</p>
+      <pre><code><span class="cmt">// .trireme/conformance.ts — generated, sketch</span>
+import * as Impl from "../src/index.js";
+import type * as Contract from "#contract";
+
+declare const asContract: typeof Contract;
+
+const _implProvidesContract: typeof Contract = Impl;
+const _implAddsNothing: typeof Impl = asContract;</code></pre>
+      <p>This is what makes an API-shape mistake a compile error rather than a mystery test failure — cheaper, and it lands before any test runs.</p>
+
+      <h3>How acceptance tests reach the package</h3>
+      <p>They import it <strong>by its package name</strong>, exactly as a real consumer would: <code>import { parse } from "semver-lite"</code>. Node's self-reference resolution handles it via the generated <code>exports</code> field, so the tests exercise the real public entry point and never reach into <code>src/</code>.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">The run</div>
+    <div class="body">
+      <h2>What the harness does</h2>
+      <div class="flow">
+        <div class="step"><span class="step-n">01</span><span class="step-b"><b>Validate</b> — manifest, spec sections, contract parses, acceptance suite present. Failure here is <span class="chip bad">error:usage</span> and costs nothing.</span></div>
+        <div class="step"><span class="step-n">02</span><span class="step-b"><b>Scaffold</b> — generate the workspace deterministically and copy in the job's read-only files.</span></div>
+        <div class="step"><span class="step-n">03</span><span class="step-b"><b>Open session</b> — one pi session, typed tools registered, pi's built-ins withheld. System prompt carries the method; the first message carries spec, contract, and the acceptance file list.</span></div>
+        <div class="step"><span class="step-n">04</span><span class="step-b"><b>Turn</b> — the agent works until it ends its turn. Cost is metered per assistant message.</span></div>
+        <div class="step"><span class="step-n">05</span><span class="step-b"><b>Gate</b> — the harness runs the acceptance suite and the typecheck itself. The agent is never asked whether it is finished.</span></div>
+        <div class="step loop"><span class="step-n">↺</span><span class="step-b">Not green, limits intact → re-prompt with the structured failures and return to 04.</span></div>
+        <div class="step"><span class="step-n">06</span><span class="step-b"><b>Build &amp; pack</b> — <code>tsc</code> to <code>dist/</code>, write the publishable manifest, pack a tarball.</span></div>
+        <div class="step"><span class="step-n">07</span><span class="step-b"><b>Report</b> — outcome class, ledger, artifacts. Written on every path, including failure and abort.</span></div>
+      </div>
+
+      <h3>Workspace — what the agent sees</h3>
+      <pre><code>workspace/
+  package.json            <span class="cmt">generated · locked</span>
+  tsconfig.json           <span class="cmt">generated · locked</span>
+  vitest.config.ts        <span class="cmt">generated · locked</span>
+  .trireme/conformance.ts <span class="cmt">generated · locked</span>
+  contract.d.ts           <span class="cmt">from job   · read-only</span>
+  acceptance/*.test.ts    <span class="cmt">from job   · read-only</span>
+  src/
+    index.ts              <span class="cmt">agent — the public entry point</span>
+    modules/&lt;name&gt;/       <span class="cmt">agent — implementation + its own tests</span></code></pre>
+      <p>Read-only is structural, not policed: no tool takes a path, and no target addresses the locked or job-owned files for writing.</p>
+
+      <h3>Run directory — what you get afterwards</h3>
+      <pre><code>runs/&lt;utc-timestamp&gt;-&lt;hash&gt;/
+  config.resolved.json    <span class="cmt">manifest after CLI overrides</span>
+  workspace/              <span class="cmt">kept on every outcome</span>
+  sessions/main.jsonl     <span class="cmt">pi transcript (a tree, once sub-agents exist)</span>
+  events.jsonl            <span class="cmt">harness log: tool calls, test runs, ledger ticks</span>
+  report.json             <span class="cmt">structured verdict</span>
+  report.md               <span class="cmt">the same, readable</span>
+  artifact/&lt;name&gt;-&lt;ver&gt;.tgz</code></pre>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Agent interface</div>
+    <div class="body">
+      <h2>Eight typed tools</h2>
+      <p>No path is ever a string the agent composes. Every tool addresses a <em>target</em>, and the harness maps targets to paths — which is what makes the invariants hold by construction and gives the harness a live model of the build rather than a directory listing.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tool</th><th>Shape</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td><code>read</code></td><td><code>{ target }</code></td><td>Any target, including the read-only ones. Returns numbered lines.</td></tr>
+            <tr><td><code>list_modules</code></td><td><code>{}</code></td><td>The build graph: each module's purpose, files, whether it has tests, last test status.</td></tr>
+            <tr><td><code>declare_module</code></td><td><code>{ name, purpose }</code></td><td>Creates the directory and registers the module. Purpose is recorded for the report.</td></tr>
+            <tr><td><code>write</code></td><td><code>{ target, content }</code></td><td>Writable targets only.</td></tr>
+            <tr><td><code>edit</code></td><td><code>{ target, find, replace, replaceAll? }</code></td><td>The primary mutation. Output tokens are the expensive ones; whole-file rewrites are the thing to avoid.</td></tr>
+            <tr><td><code>remove</code></td><td><code>{ target }</code></td><td>Restructuring is real; deletion shouldn't require a workaround.</td></tr>
+            <tr><td><code>run_tests</code></td><td><code>{ scope }</code></td><td><code>acceptance</code> · <code>module &lt;name&gt;</code> · <code>all</code>. Structured results, not stdout.</td></tr>
+            <tr><td><code>typecheck</code></td><td><code>{}</code></td><td><code>tsc</code> over source, acceptance, and the conformance module. Structured diagnostics.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Targets</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Target</th><th>Resolves to</th><th>Access</th></tr></thead>
+          <tbody>
+            <tr><td><code>{ kind: "spec" }</code></td><td><code>spec.md</code></td><td>read</td></tr>
+            <tr><td><code>{ kind: "contract" }</code></td><td><code>contract.d.ts</code></td><td>read</td></tr>
+            <tr><td><code>{ kind: "acceptance", file? }</code></td><td><code>acceptance/…</code></td><td>read</td></tr>
+            <tr><td><code>{ kind: "entry" }</code></td><td><code>src/index.ts</code></td><td>read · write</td></tr>
+            <tr><td><code>{ kind: "module", name, file? }</code></td><td><code>src/modules/&lt;name&gt;/&lt;file⎮index.ts&gt;</code></td><td>read · write</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>A module is a directory, not a file — internal structure is the agent's to choose. Its tests are simply files matching <code>*.test.ts</code> inside it, which is what <code>run_tests</code> scopes to.</p>
+
+      <h3>Method, stated in the system prompt</h3>
+      <pre><code>Work module by module. For each: declare it, write its exported types
+and its tests, run them and watch them fail, then implement until they
+pass. Move to the next only when the current one is green.
+
+The acceptance suite is the goal and is not yours to edit. Your own
+module tests are scaffolding — they help you build, and they do not
+decide whether the job is done.
+
+Read the spec before writing code, and re-read it when a test disagrees
+with you. The contract fixes the shape of the public API; the spec fixes
+its meaning.</code></pre>
+      <p>The same expectation is repeated in the tool descriptions, so the method travels with the tools. Stated calmly and once — an over-emphatic prompt reliably makes current models worse, not more compliant.</p>
+
+      <div class="call">
+        <span class="call-label">Deliberate omission</span>
+        <p>There is no <code>done</code> tool. The agent cannot declare victory; the harness runs the gate. This is the single most important property of the loop, and it's cheapest to get right by never building the affordance.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Verdict</div>
+    <div class="body">
+      <h2>Done, failed, aborted</h2>
+      <p><strong>Done</strong> means all three: every acceptance test passes, <code>tsc</code> reports no errors across source, acceptance and conformance, and the package builds. Nothing else is in the gate.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Outcome</th><th class="num">Exit</th><th>Meaning</th><th>A campaign should</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip ok">success</span></td><td class="num">0</td><td>Gate passed; tarball written.</td><td>continue</td></tr>
+            <tr><td><span class="chip warn">failed:cost_cap</span></td><td class="num">1</td><td>Budget exhausted, tests still red.</td><td>continue</td></tr>
+            <tr><td><span class="chip warn">failed:wall_clock</span></td><td class="num">1</td><td>Time cap hit, tests still red.</td><td>continue</td></tr>
+            <tr><td><span class="chip warn">failed:no_progress</span></td><td class="num">1</td><td>Three consecutive turns with no mutating tool call while red — or iteration cap reached.</td><td>continue</td></tr>
+            <tr><td><span class="chip bad">aborted:infra</span></td><td class="num">2</td><td>Provider outage, exhausted usage limits, auth or network failure — after pi's own retries.</td><td><strong>stop</strong></td></tr>
+            <tr><td><span class="chip bad">error:usage</span></td><td class="num">3</td><td>Malformed job or flags. Never started.</td><td>stop and fix</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Where causes overlap — a run near its cap when the provider fails — <span class="chip bad">aborted:infra</span> wins, because it is the class that halts a campaign and that is the safe direction to err in. Artifacts are written on every path; a run that died mid-flight still tells you how far it got.</p>
+
+      <h3>The ledger</h3>
+      <p>The subscription bills nothing per token, so cost is <em>imputed</em>: tokens × published list price, taken from pi's own model registry, split across input, output, cache-read and cache-write. Budgets are therefore denominated in list-price dollars, and the report states that plainly so the number is never mistaken for an invoice.</p>
+      <p>Both limits are checked after every assistant message, so overshoot is bounded by one message. Wall clock starts when the process starts and includes scaffolding and installs — the honest reading of the phrase. Time lost to provider backoff counts against it, and is also recorded separately so a stalled run is legible as such.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Dependencies</div>
+    <div class="body">
+      <h2>Zero by default, artifacts when needed</h2>
+      <p>The package under construction has no runtime dependencies, and no tool exists for the agent to add one. What the <em>manifest</em> may declare is a different thing: dependencies the harness installs before the agent starts, from two sources.</p>
+      <ul>
+        <li><strong>Registry</strong> — an allowlist, installed by the harness. The agent never sees a network.</li>
+        <li><strong>Local artifact</strong> — a tarball produced by an earlier trireme run, pinned by name, version and run id.</li>
+      </ul>
+      <p>These are one mechanism, because the successful output of a run is an npm-packable tarball and both package managers install from a tarball path natively. That is also what makes the dogfooding milestone reachable: trireme's own shell becomes a job that depends on artifacts trireme produced.</p>
+      <p>v1 constraints: artifacts are immutable, a job whose dependency artifact is missing does not start, and ordering is the caller's problem until a campaign runner exists.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Internals</div>
+    <div class="body">
+      <h2>A pure core and a thin shell</h2>
+      <p>Trireme is one package — <code>exports</code> for the library, <code>bin</code> for the CLI — organised internally as ES modules. Nothing becomes its own package until it earns one. The split below is not architecture for its own sake: the pure column is exactly the set of modules that can later be promoted, mechanically, into trireme jobs.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Pure core</th><th>Responsibility</th></tr></thead>
+          <tbody>
+            <tr><td><code>manifest</code></td><td>Parse, validate, merge CLI overrides → resolved config.</td></tr>
+            <tr><td><code>spec</code></td><td>Validate required sections; extract them.</td></tr>
+            <tr><td><code>scaffold</code></td><td>Config → a file map. Writing it is someone else's job.</td></tr>
+            <tr><td><code>targets</code></td><td>Target → path, and the access rules. The write-protection lives here.</td></tr>
+            <tr><td><code>graph</code></td><td>Module registry and status; what <code>list_modules</code> returns.</td></tr>
+            <tr><td><code>ledger</code></td><td>Usage events + price table → dollars.</td></tr>
+            <tr><td><code>results</code></td><td>vitest and tsc output → structured results, and the failure text the agent reads.</td></tr>
+            <tr><td><code>policy</code></td><td>(limits, state) → continue or stop, with a reason.</td></tr>
+            <tr><td><code>outcome</code></td><td>Terminal state → outcome class and exit code.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Shell</th><th>Owns the effect</th></tr></thead>
+          <tbody>
+            <tr><td><code>store</code></td><td>Filesystem: workspace, run directory, artifacts.</td></tr>
+            <tr><td><code>runner</code></td><td>Child processes for vitest and tsc, with a kill timer the in-process APIs can't give us.</td></tr>
+            <tr><td><code>packer</code></td><td>Build and tarball.</td></tr>
+            <tr><td><code>agent</code></td><td>pi session, tool registration, event subscription.</td></tr>
+            <tr><td><code>orchestrator</code></td><td>The loop. Takes clock, store, runner and agent as inputs.</td></tr>
+            <tr><td><code>cli</code></td><td>Arguments → a library call.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>How the shell gets an objective verdict too</h3>
+      <p>Every impure module takes its effect as an injected input, so its acceptance tests are deterministic. The session driver is the interesting case: pi supports a <code>streamFn</code> that returns a scripted event stream — its own test suite uses exactly this to drive the agent loop with no model. Budget exhaustion, wall-clock expiry, no-progress and infra aborts are therefore all testable offline, in milliseconds, for nothing.</p>
+      <p>Trireme is built the way trireme builds: spec, contract and acceptance suite first, then implementation until green. Its acceptance suite is the artifact worth your attention — reviewing it is how you review the project.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Milestones</div>
+    <div class="body">
+      <h2>Order of work</h2>
+      <div class="flow">
+        <div class="step"><span class="step-n">M0</span><span class="step-b"><b>Contract</b> — trireme's own <code>spec.md</code>, <code>index.d.ts</code> and acceptance suite, plus the sample job. You review the suite before implementation starts.</span></div>
+        <div class="step"><span class="step-n">M1</span><span class="step-b"><b>Green</b> — pure core, then shell, then the loop. Ends when trireme builds the sample job end to end against a real model.</span></div>
+        <div class="step"><span class="step-n">M2</span><span class="step-b"><b>Dogfood</b> — promote pure-core modules to jobs and have trireme rebuild them. This is both the real end-to-end test and the first benchmark set for cost, wall clock and run-to-run variance.</span></div>
+        <div class="step"><span class="step-n">M3+</span><span class="step-b"><b>Later</b> — campaign runner, sub-agent delegation, registry publishing. Deliberately out of scope now; the ledger tree, test scoping and tool scoping already anticipate them.</span></div>
+      </div>
+
+      <h3>The sample job</h3>
+      <p><code>semver-lite</code> — parse, compare and sort semantic versions, plus a small range subset. Pure, zero-dependency, unambiguous, and rich in edge cases (prerelease ordering, build metadata, numeric versus lexical identifier comparison). It is small enough to run cheaply and often, and nasty enough that a weak implementation fails honestly.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Open</div>
+    <div class="body">
+      <h2>What I need from you</h2>
+      <div class="call ask">
+        <span class="call-label">Decide</span>
+        <p><strong>The iteration cap.</strong> Third limit as a backstop, or hold at two metrics? (§ Job format)</p>
+      </div>
+      <div class="call ask">
+        <span class="call-label">Decide</span>
+        <p><strong>A GitHub remote</strong>, or local-only for now? A remote needs an SSH key or <code>gh</code> on this box; local-only costs nothing and can be added whenever.</p>
+      </div>
+      <div class="call ask">
+        <span class="call-label">Do</span>
+        <p><strong>Log pi in to your Claude account.</strong> Run <code>pi</code>, then <code>/login</code>. It's an OAuth flow, so copy the URL to your laptop's browser and paste the code back. <code>pi auth check --provider anthropic --json</code> currently reports <code>credentials_not_configured</code>; when it reports ready, the first live run is unblocked.</p>
+      </div>
+      <div class="call">
+        <span class="call-label">Noted, not blocking</span>
+        <p>Two things I've chosen and can revisit cheaply: the acceptance suite runs against source during the loop, with the built package verified only by compiling — re-running acceptance against the packed tarball is a stronger final gate and is a small addition once the loop exists. And <code>.claude/settings.json</code> still pins Fable 5, which will override the Opus 5 default on your next restart.</p>
+      </div>
+    </div>
+  </section>
+
+</div>
