@@ -302,6 +302,36 @@ export async function runJob(options: RunOptions): Promise<RunResult> {
           stalledMs += event.delayMs;
           log.write({ type: "provider_retry", attempt: event.attempt, delayMs: event.delayMs });
           return;
+        case "auto_retry_end":
+          log.write({
+            type: "provider_retry_end",
+            success: event.success,
+            attempt: event.attempt,
+            finalError: event.finalError,
+          });
+          return;
+        // Compaction rewrites what the model can see. A long run is where it
+        // first happens, and a run that changes behaviour afterwards needs the
+        // log to say so.
+        case "compaction_start":
+          log.write({ type: "compaction_start", reason: event.reason });
+          return;
+        case "compaction_end":
+          // The summary is its own model call and is billed; it never passes
+          // through message_end, so the ledger has to be told here.
+          if (event.result?.usage) ledger.add(event.result.usage);
+          log.write({
+            type: "compaction_end",
+            reason: event.reason,
+            aborted: event.aborted,
+            willRetry: event.willRetry,
+            errorMessage: event.errorMessage,
+            tokensBefore: event.result?.tokensBefore,
+            estimatedTokensAfter: event.result?.estimatedTokensAfter,
+            summaryLength: event.result?.summary?.length,
+            usage: bounded(event.result?.usage),
+          });
+          return;
         default:
           return;
       }
