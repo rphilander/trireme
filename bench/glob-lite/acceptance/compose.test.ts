@@ -55,6 +55,32 @@ describe("extended patterns and classes still apply inside each alternative", ()
   });
 });
 
+describe("each alternative is matched on its own; they are not joined into one group", () => {
+  const cases: Array<[string, string, boolean]> = [
+    ["a|b", "{a|b,c}", true],
+    ["a", "{a|b,c}", false],
+    ["c", "{a|b,c}", true],
+    ["a,b", "{a,b}", false],
+  ];
+  it.each(cases)("matchAny(%j, %j) is %j", (input, pattern, expected) => {
+    expect(matchAny(input, pattern)).toBe(expected);
+  });
+});
+
+describe("a backslash in the pattern is preserved by expansion and still escapes in the match", () => {
+  const cases: Array<[string, string, boolean]> = [
+    ["a,b", "{a\\,b,c}", true],
+    ["c", "{a\\,b,c}", true],
+    ["a*b", "{a\\*b,c}", true],
+    ["axb", "{a\\*b,c}", false],
+    ["{a,b}", "\\{a,b}", true],
+    ["a", "\\{a,b}", false],
+  ];
+  it.each(cases)("matchAny(%j, %j) is %j", (input, pattern, expected) => {
+    expect(matchAny(input, pattern)).toBe(expected);
+  });
+});
+
 describe("options pass through to every alternative", () => {
   const cases: Array<[string, string, boolean]> = [
     ["ABC", "{abc,x}", true],

@@ -31,16 +31,46 @@ describe("bracket sets and ranges fold too", () => {
     ["a", "[!A]", false],
     ["A", "[!a]", false],
     ["D", "[!a-c]", true],
+    ["b", "[A-Z]", true],
+    ["B", "[a-z]", true],
   ];
   it.each(cases)("match(%j, %j, nocase) is %j", (input, pattern, expected) => {
     expect(match(input, pattern, { nocase: true })).toBe(expected);
   });
 });
 
-describe("POSIX classes are not folded", () => {
+describe("both range endpoints are folded before the range is tested", () => {
+  const cases: Array<[string, string, boolean]> = [
+    ["_", "[A-z]", false],
+    ["Y", "[X-x]", false],
+    ["y", "[Y-Y]", true],
+    ["Y", "[y-y]", true],
+    ["[", "[Z-a]", false],
+    ["z", "[Z-a]", false],
+  ];
+  it.each(cases)("match(%j, %j, nocase) is %j", (input, pattern, expected) => {
+    expect(match(input, pattern, { nocase: true })).toBe(expected);
+  });
+});
+
+describe("escaped letters fold", () => {
+  const cases: Array<[string, string, boolean]> = [
+    ["a", "\\A", true],
+    ["A", "\\a", true],
+    ["a", "\\b", false],
+    ["A*", "\\a\\*", true],
+  ];
+  it.each(cases)("match(%j, %j, nocase) is %j", (input, pattern, expected) => {
+    expect(match(input, pattern, { nocase: true })).toBe(expected);
+  });
+});
+
+describe("POSIX classes test the actual character and are not folded", () => {
   const cases: Array<[string, string, boolean]> = [
     ["A", "[[:lower:]]", false],
     ["a", "[[:upper:]]", false],
+    ["A", "[[:upper:]]", true],
+    ["a", "[[:lower:]]", true],
     ["a", "[[:alpha:]]", true],
     ["A", "[[:alpha:]]", true],
   ];

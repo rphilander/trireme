@@ -193,23 +193,89 @@ describe("extended patterns nest", () => {
   });
 });
 
-describe("an unbalanced or stray parenthesis is an ordinary character", () => {
+describe("an unclosed extended pattern makes the operator and everything after it one literal string", () => {
   const cases: Array<[string, string, boolean]> = [
     ["?(a", "?(a", true],
     ["x(a", "?(a", false],
-    ["a)", "a)", true],
-    ["a", "a)", false],
     ["!(a", "!(a", true],
     ["x(a", "!(a", false],
     ["@(a", "@(a", true],
-    ["(a)", "(a)", true],
-    ["a", "(a)", false],
     ["*(", "*(", true],
     ["x(", "*(", false],
     ["(", "*(", false],
+    ["?(abc", "?(a*", false],
+    ["?(a*", "?(a*", true],
+    ["?(ab", "?(a\\b", false],
+    ["?(a\\b", "?(a\\b", true],
+    ["!(a*", "!(a*", true],
+    ["!(ab", "!(a*", false],
+    ["+(a[b]", "+(a[b]", true],
+    ["+(ab", "+(a[b]", false],
+  ];
+  it.each(cases)("match(%j, %j) is %j", (input, pattern, expected) => {
+    expect(match(input, pattern)).toBe(expected);
+  });
+});
+
+describe("a stray ) or a bare ( is an ordinary character", () => {
+  const cases: Array<[string, string, boolean]> = [
+    ["a)", "a)", true],
+    ["a", "a)", false],
+    ["(a)", "(a)", true],
+    ["a", "(a)", false],
     ["a)", "?(a))", true],
     ["a", "?(a))", false],
     ["a))", "?(a))", false],
+    ["(", "(", true],
+    ["", "(", false],
+  ];
+  it.each(cases)("match(%j, %j) is %j", (input, pattern, expected) => {
+    expect(match(input, pattern)).toBe(expected);
+  });
+});
+
+describe("| is only an alternative separator inside a group; brackets, escapes and parentheses nest inside one", () => {
+  const cases: Array<[string, string, boolean]> = [
+    ["a|b", "a|b", true],
+    ["a", "a|b", false],
+    ["b", "a|b", false],
+    [")", "@([)]|x)", true],
+    ["x", "@([)]|x)", true],
+    ["|", "@([a|b])", true],
+    ["a", "@([a|b])", true],
+    ["a)", "@(a\\)|b)", true],
+    ["b", "@(a\\)|b)", true],
+    ["a|b", "@(a\\|b|c)", true],
+    ["a", "@(a\\|b|c)", false],
+    ["c", "@(a\\|b|c)", true],
+    ["x", "@(()|x)", true],
+    ["()", "@(()|x)", true],
+    ["(", "@(()|x)", false],
+    ["()", "[?(])", true],
+    ["?", "[?(])", false],
+    ["b", "[!(a)]", true],
+    ["(", "[!(a)]", false],
+    ["a", "[!(a)]", false],
+  ];
+  it.each(cases)("match(%j, %j) is %j", (input, pattern, expected) => {
+    expect(match(input, pattern)).toBe(expected);
+  });
+});
+
+describe("* followed by an extended pattern, where bash is consistent", () => {
+  const cases: Array<[string, string, boolean]> = [
+    ["foo.js", "*@(.js|.ts)", true],
+    ["foo.ts", "*@(.js|.ts)", true],
+    ["foo.md", "*@(.js|.ts)", false],
+    ["baa", "*+(a)", true],
+    ["b", "*+(a)", false],
+    ["a", "*+(a)", true],
+    ["xab", "*?(a)b", true],
+    ["xb", "*?(a)b", true],
+    ["ab", "*(a)b", true],
+    ["xxab", "*(a)b", false],
+    ["xxa", "*(a)b", false],
+    ["a.b.c", "*@(.b|.c).c", true],
   ];
   it.each(cases)("match(%j, %j) is %j", (input, pattern, expected) => {
     expect(match(input, pattern)).toBe(expected);

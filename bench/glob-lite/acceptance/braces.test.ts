@@ -162,6 +162,31 @@ describe("a range that is not a range is literal", () => {
     ["{1..2..}", ["{1..2..}"]],
     ["{a..b..c}", ["{a..b..c}"]],
     ["{1..2..3..4}", ["{1..2..3..4}"]],
+    ["{Z..[}", ["{Z..[}"]],
+    ["{9..A}", ["{9..A}"]],
+  ];
+  it.each(cases)("expandBraces(%j) is %j", (pattern, expected) => {
+    expect(expandBraces(pattern)).toEqual(expected);
+  });
+});
+
+describe("a list item is never a range", () => {
+  const cases: Array<[string, string[]]> = [
+    ["{1..3,a}", ["1..3", "a"]],
+    ["{a,1..3}", ["a", "1..3"]],
+    ["{a..c,x}", ["a..c", "x"]],
+    ["{1..3,4..5}", ["1..3", "4..5"]],
+  ];
+  it.each(cases)("expandBraces(%j) is %j", (pattern, expected) => {
+    expect(expandBraces(pattern)).toEqual(expected);
+  });
+});
+
+describe("an endpoint that does not fit a 64-bit integer makes the expression literal, not a hang", () => {
+  const cases: Array<[string, string[]]> = [
+    ["{1..99999999999999999999}", ["{1..99999999999999999999}"]],
+    ["{99999999999999999999..1}", ["{99999999999999999999..1}"]],
+    ["{1..9223372036854775808}", ["{1..9223372036854775808}"]],
   ];
   it.each(cases)("expandBraces(%j) is %j", (pattern, expected) => {
     expect(expandBraces(pattern)).toEqual(expected);

@@ -49,17 +49,24 @@ SAFE_BRACE = re.compile(r"^[A-Za-z0-9{},.\-_\\/+=:@^*?\[\]!]*$")
 SENTINEL = "%"
 
 
-def bash_expand(pattern: str) -> list[str]:
+def bash_expand(pattern: str, allow_backslash: bool = False) -> list[str]:
     # The pattern is spliced into shell source unquoted, which is the only way
     # brace expansion happens. The character set is restricted so nothing else
     # in the shell's grammar can fire; `set -f` keeps globbing out of it.
     #
     # The word is wrapped in a sentinel because the shell discards empty words
     # after expansion: `{,a}` really expands to "" and "a", but printf would
-    # only ever see "a". Braces are matched within the word regardless of what
-    # surrounds them, so the sentinel changes nothing about the expansion.
+    # only ever see "a" (positional parameters drop them too). The sentinel is
+    # neutral for every shape but one: bash skips a `{` at the very start of a
+    # word when `}` follows it, so `{},a}` is literal unprefixed but expands
+    # once prefixed. That shape is asserted away and left unspecified.
+    #
+    # Backslashes are refused by default: printf shows words after quote
+    # removal, so a stated expectation and the dequote check are required.
     assert SAFE_BRACE.match(pattern), f"unsafe brace case: {pattern!r}"
     assert SENTINEL not in pattern, f"brace case contains the sentinel: {pattern!r}"
+    assert allow_backslash or "\\" not in pattern, f"backslash needs a stated expectation: {pattern!r}"
+    assert not pattern.startswith("{},"), f"the sentinel distorts this shape: {pattern!r}"
     r = subprocess.run(
         ["bash", "-c", f"set -f; printf '%s\\n' {SENTINEL}{pattern}{SENTINEL}"],
         env=ENV,
@@ -77,7 +84,7 @@ def bash_expand(pattern: str) -> list[str]:
 INERT = {"(": "QQLPQQ", ")": "QQRPQQ", "|": "QQBARQQ"}
 
 
-def bash_expand_any(pattern: str) -> list[str]:
+def bash_expand_any(pattern: str, allow_backslash: bool = False) -> list[str]:
     """Brace-expands a pattern that also contains extglob syntax.
 
     Parentheses and bars are shell grammar when unquoted, but brace expansion
@@ -87,7 +94,7 @@ def bash_expand_any(pattern: str) -> list[str]:
     for char, token in INERT.items():
         assert token not in pattern
         tokenized = tokenized.replace(char, token)
-    out = bash_expand(tokenized)
+    out = bash_expand(tokenized, allow_backslash)
     for char, token in INERT.items():
         out = [w.replace(token, char) for w in out]
     return out
@@ -144,7 +151,7 @@ MATCH_CASES: dict[str, list[tuple[str, list[tuple[str, str]]]]] = {
         ]),
         ("ranges are inclusive and compare character codes", [
             ("b", "[a-c]"), ("d", "[a-c]"), ("a", "[a-c]"), ("c", "[a-c]"), ("a", "[a-a]"),
-            ("b", "[b-a]"), ("5", "[0-9]"), ("a", "[0-9]"), ("B", "[a-z]"), ("b", "[A-Za-z]"),
+            ("b", "[b-a]"), ("[b-a]", "[b-a]"), ("c", "[b-ac]"), ("b", "[b-ac]"), ("5", "[0-9]"), ("a", "[0-9]"), ("B", "[a-z]"), ("b", "[A-Za-z]"),
             ("_", "[A-Za-z_]"), ("_", "[A-Za-z]"), ("-", "[a-c-e]"), ("d", "[a-c-e]"),
             ("e", "[a-c-e]"), (".", "[--0]"), ("/", "[--0]"), ("1", "[--0]"), ("-", "[--0]"),
         ]),
@@ -164,7 +171,12 @@ MATCH_CASES: dict[str, list[tuple[str, list[tuple[str, str]]]]] = {
             ("5", "[[:alnum:]]"), ("_", "[[:alnum:]]"), (" ", "[[:space:]]"), ("\t", "[[:space:]]"),
             ("a", "[[:space:]]"), ("!", "[[:punct:]]"), ("a", "[[:punct:]]"), ("f", "[[:xdigit:]]"),
             ("g", "[[:xdigit:]]"), ("F", "[[:xdigit:]]"), (" ", "[[:blank:]]"), ("\t", "[[:blank:]]"),
-            ("a", "[[:blank:]]"),
+            ("a", "[[:blank:]]"), ("_", "[[:word:]]"), ("-", "[[:word:]]"), ("5", "[[:word:]]"),
+            (" ", "[[:print:]]"), ("a", "[[:print:]]"), ("\t", "[[:print:]]"), (" ", "[[:graph:]]"),
+            ("a", "[[:graph:]]"), ("\t", "[[:cntrl:]]"), ("a", "[[:cntrl:]]"), ("a", "[[:ascii:]]"),
+        ]),
+        ("an unknown class name matches no character", [
+            ("a", "[[:foo:]]"), ("f]", "[[:foo:]]"), (":", "[[:foo:]]"), ("x", "[[:foo:]x]"), ("a", "[[:foo:]x]"),
         ]),
         ("classes, ranges and characters combine in one expression", [
             ("5", "[[:digit:][:alpha:]]"), ("q", "[[:digit:][:alpha:]]"), ("_", "[[:digit:][:alpha:]]"),
@@ -179,10 +191,11 @@ MATCH_CASES: dict[str, list[tuple[str, list[tuple[str, str]]]]] = {
         ("wildcards inside a bracket expression are literal", [
             ("*", "[*]"), ("a", "[*]"), ("?", "[?]"), ("a", "[?]"), ("*", "[a*]"), ("b", "[a*]"),
         ]),
-        ("an unclosed bracket expression is matched literally", [
+        ("an unclosed [ is a literal [ and the rest of the pattern still applies", [
             ("[a", "[a"), ("a", "[a"), ("[abc", "[abc"), ("a[", "a["), ("a", "a["), ("[]", "[]"),
             ("a", "[]"), ("a[]b", "a[]b"), ("ab", "a[]b"), ("[", "["), ("", "["), ("[!", "[!"),
-            ("[!]", "[!]"), ("!", "[!]"), ("a", "[!]"), ("[^]", "[^]"),
+            ("[!]", "[!]"), ("!", "[!]"), ("a", "[!]"), ("[^]", "[^]"), ("[abc", "[a*"), ("[a", "[a*"),
+            ("xabc", "[a*"), ("[ab", "[a@(b)"), ("[a@(b)", "[a@(b)"), ("[a?", "[a\\?"), ("[ab", "[a\\?"),
         ]),
     ],
     "escapes": [
@@ -247,10 +260,26 @@ MATCH_CASES: dict[str, list[tuple[str, list[tuple[str, str]]]]] = {
             ("a", "!(!(!(a)))"), ("b", "!(!(!(a)))"), ("abd", "a@(b|c)?(d)"), ("ab", "a@(b|c)?(d)"),
             ("acd", "a@(b|c)?(d)"), ("ad", "a@(b|c)?(d)"), ("ab", "@(a|b)@(a|b)"), ("aab", "*(a)@(a|b)b"),
         ]),
-        ("an unbalanced or stray parenthesis is an ordinary character", [
-            ("?(a", "?(a"), ("x(a", "?(a"), ("a)", "a)"), ("a", "a)"), ("!(a", "!(a"), ("x(a", "!(a"),
-            ("@(a", "@(a"), ("(a)", "(a)"), ("a", "(a)"), ("*(", "*("), ("x(", "*("), ("(", "*("),
-            ("a)", "?(a))"), ("a", "?(a))"), ("a))", "?(a))"),
+        ("an unclosed extended pattern makes the operator and everything after it one literal string", [
+            ("?(a", "?(a"), ("x(a", "?(a"), ("!(a", "!(a"), ("x(a", "!(a"), ("@(a", "@(a"), ("*(", "*("),
+            ("x(", "*("), ("(", "*("), ("?(abc", "?(a*"), ("?(a*", "?(a*"), ("?(ab", "?(a\\b"),
+            ("?(a\\b", "?(a\\b"), ("!(a*", "!(a*"), ("!(ab", "!(a*"), ("+(a[b]", "+(a[b]"), ("+(ab", "+(a[b]"),
+        ]),
+        ("a stray ) or a bare ( is an ordinary character", [
+            ("a)", "a)"), ("a", "a)"), ("(a)", "(a)"), ("a", "(a)"), ("a)", "?(a))"), ("a", "?(a))"),
+            ("a))", "?(a))"), ("(", "("), ("", "("),
+        ]),
+        ("| is only an alternative separator inside a group; brackets, escapes and parentheses nest inside one", [
+            ("a|b", "a|b"), ("a", "a|b"), ("b", "a|b"), (")", "@([)]|x)"), ("x", "@([)]|x)"),
+            ("|", "@([a|b])"), ("a", "@([a|b])"), ("a)", "@(a\\)|b)"), ("b", "@(a\\)|b)"),
+            ("a|b", "@(a\\|b|c)"), ("a", "@(a\\|b|c)"), ("c", "@(a\\|b|c)"), ("x", "@(()|x)"),
+            ("()", "@(()|x)"), ("(", "@(()|x)"), ("()", "[?(])"), ("?", "[?(])"), ("b", "[!(a)]"),
+            ("(", "[!(a)]"), ("a", "[!(a)]"),
+        ]),
+        ("* followed by an extended pattern, where bash is consistent", [
+            ("foo.js", "*@(.js|.ts)"), ("foo.ts", "*@(.js|.ts)"), ("foo.md", "*@(.js|.ts)"),
+            ("baa", "*+(a)"), ("b", "*+(a)"), ("a", "*+(a)"), ("xab", "*?(a)b"), ("xb", "*?(a)b"),
+            ("ab", "*(a)b"), ("xxab", "*(a)b"), ("xxa", "*(a)b"), ("a.b.c", "*@(.b|.c).c"),
         ]),
     ],
 }
@@ -262,10 +291,17 @@ NOCASE_CASES: list[tuple[str, list[tuple[str, str]]]] = [
     ]),
     ("bracket sets and ranges fold too", [
         ("ABC", "a[b]c"), ("ABC", "a[B]c"), ("B", "[a-c]"), ("b", "[A-C]"), ("Z", "[a-c]"),
-        ("a", "[!a]"), ("a", "[!A]"), ("A", "[!a]"), ("D", "[!a-c]"),
+        ("a", "[!a]"), ("a", "[!A]"), ("A", "[!a]"), ("D", "[!a-c]"), ("b", "[A-Z]"), ("B", "[a-z]"),
     ]),
-    ("POSIX classes are not folded", [
-        ("A", "[[:lower:]]"), ("a", "[[:upper:]]"), ("a", "[[:alpha:]]"), ("A", "[[:alpha:]]"),
+    ("both range endpoints are folded before the range is tested", [
+        ("_", "[A-z]"), ("Y", "[X-x]"), ("y", "[Y-Y]"), ("Y", "[y-y]"), ("[", "[Z-a]"), ("z", "[Z-a]"),
+    ]),
+    ("escaped letters fold", [
+        ("a", "\\A"), ("A", "\\a"), ("a", "\\b"), ("A*", "\\a\\*"),
+    ]),
+    ("POSIX classes test the actual character and are not folded", [
+        ("A", "[[:lower:]]"), ("a", "[[:upper:]]"), ("A", "[[:upper:]]"), ("a", "[[:lower:]]"),
+        ("a", "[[:alpha:]]"), ("A", "[[:alpha:]]"),
     ]),
     ("extended patterns fold their alternatives", [
         ("ABC", "@(abc|x)"), ("ABC", "!(abc)"), ("ABD", "!(abc)"), ("ABC", "+(a|b|c)"),
@@ -308,7 +344,13 @@ BRACE_CASES: list[tuple[str, list[str]]] = [
     ]),
     ("a range that is not a range is literal", [
         "{1..a}", "{a..1}", "{aa..b}", "{a..bb}", "{1..2..x}", "{1..}", "{..2}", "{1.2}", "{1...3}",
-        "{ab,cd..ef}", "{1..2..}", "{a..b..c}", "{1..2..3..4}",
+        "{ab,cd..ef}", "{1..2..}", "{a..b..c}", "{1..2..3..4}", "{Z..[}", "{9..A}",
+    ]),
+    ("a list item is never a range", [
+        "{1..3,a}", "{a,1..3}", "{a..c,x}", "{1..3,4..5}",
+    ]),
+    ("an endpoint that does not fit a 64-bit integer makes the expression literal, not a hang", [
+        "{1..99999999999999999999}", "{99999999999999999999..1}", "{1..9223372036854775808}",
     ]),
     ("ranges combine with lists and text", [
         "{a..b}{1..2}", "{1..2}{a..b}", "{a..c}x", "{1..3}.txt", "file{,.bak}", "{1..3}{,}",
@@ -345,6 +387,20 @@ COMPOSE_CASES: list[tuple[str, list[tuple[str, str]]]] = [
         ("foo", "{!(bar),x}"), ("bar", "{!(bar),x}"), ("x", "{!(bar),x}"), ("a5", "{a[0-9],b}"),
         ("aX", "{a[0-9],b}"), ("ab", "{a@(b|c),x}"), ("ad", "{a@(b|c),x}"),
     ]),
+    ("each alternative is matched on its own; they are not joined into one group", [
+        ("a|b", "{a|b,c}"), ("a", "{a|b,c}"), ("c", "{a|b,c}"), ("a,b", "{a,b}"),
+    ]),
+]
+
+# Backslash cases: (input, pattern, stated expansion). The expansion is checked
+# against bash after dequoting; the match half is bash's answer per alternative.
+COMPOSE_ESCAPE_CASES: list[tuple[str, str, list[str]]] = [
+    ("a,b", "{a\\,b,c}", ["a\\,b", "c"]),
+    ("c", "{a\\,b,c}", ["a\\,b", "c"]),
+    ("a*b", "{a\\*b,c}", ["a\\*b", "c"]),
+    ("axb", "{a\\*b,c}", ["a\\*b", "c"]),
+    ("{a,b}", "\\{a,b}", ["\\{a,b}"]),
+    ("a", "\\{a,b}", ["\\{a,b}"]),
 ]
 
 COMPOSE_NOCASE_CASES: list[tuple[str, str]] = [
@@ -396,7 +452,7 @@ def emit_braces_file() -> str:
     lines.append('describe("a backslash protects a brace or comma from being syntax, and is kept", () => {')
     lines.append("  const cases: Array<[string, string[]]> = [")
     for pattern, expected in BRACE_ESCAPE_CASES:
-        seen = bash_expand(pattern)
+        seen = bash_expand(pattern, allow_backslash=True)
         assert [dequote(e) for e in expected] == seen, f"{pattern!r}: stated {expected} but bash prints {seen}"
         lines.append(f"    [{ts(pattern)}, {ts(expected)}],")
     lines.append("  ];")
@@ -422,6 +478,19 @@ def emit_compose_file() -> str:
         lines.append("  });")
         lines.append("});")
         lines.append("")
+    lines.append('describe("a backslash in the pattern is preserved by expansion and still escapes in the match", () => {')
+    lines.append("  const cases: Array<[string, string, boolean]> = [")
+    for text, pattern, stated in COMPOSE_ESCAPE_CASES:
+        seen = bash_expand_any(pattern, allow_backslash=True)
+        assert [dequote(e) for e in stated] == seen, f"{pattern!r}: stated {stated} but bash prints {seen}"
+        expected = any(bash_match(text, alt) for alt in stated)
+        lines.append(f"    [{ts(text)}, {ts(pattern)}, {ts(expected)}],")
+    lines.append("  ];")
+    lines.append('  it.each(cases)("matchAny(%j, %j) is %j", (input, pattern, expected) => {')
+    lines.append("    expect(matchAny(input, pattern)).toBe(expected);")
+    lines.append("  });")
+    lines.append("});")
+    lines.append("")
     lines.append('describe("options pass through to every alternative", () => {')
     lines.append("  const cases: Array<[string, string, boolean]> = [")
     for text, pattern in COMPOSE_NOCASE_CASES:

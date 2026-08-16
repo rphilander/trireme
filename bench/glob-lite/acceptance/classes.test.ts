@@ -29,6 +29,9 @@ describe("ranges are inclusive and compare character codes", () => {
     ["c", "[a-c]", true],
     ["a", "[a-a]", true],
     ["b", "[b-a]", false],
+    ["[b-a]", "[b-a]", false],
+    ["c", "[b-ac]", true],
+    ["b", "[b-ac]", false],
     ["5", "[0-9]", true],
     ["a", "[0-9]", false],
     ["B", "[a-z]", false],
@@ -118,6 +121,30 @@ describe("POSIX character classes", () => {
     [" ", "[[:blank:]]", true],
     ["\t", "[[:blank:]]", true],
     ["a", "[[:blank:]]", false],
+    ["_", "[[:word:]]", true],
+    ["-", "[[:word:]]", false],
+    ["5", "[[:word:]]", true],
+    [" ", "[[:print:]]", true],
+    ["a", "[[:print:]]", true],
+    ["\t", "[[:print:]]", false],
+    [" ", "[[:graph:]]", false],
+    ["a", "[[:graph:]]", true],
+    ["\t", "[[:cntrl:]]", true],
+    ["a", "[[:cntrl:]]", false],
+    ["a", "[[:ascii:]]", true],
+  ];
+  it.each(cases)("match(%j, %j) is %j", (input, pattern, expected) => {
+    expect(match(input, pattern)).toBe(expected);
+  });
+});
+
+describe("an unknown class name matches no character", () => {
+  const cases: Array<[string, string, boolean]> = [
+    ["a", "[[:foo:]]", false],
+    ["f]", "[[:foo:]]", false],
+    [":", "[[:foo:]]", false],
+    ["x", "[[:foo:]x]", true],
+    ["a", "[[:foo:]x]", false],
   ];
   it.each(cases)("match(%j, %j) is %j", (input, pattern, expected) => {
     expect(match(input, pattern)).toBe(expected);
@@ -177,7 +204,7 @@ describe("wildcards inside a bracket expression are literal", () => {
   });
 });
 
-describe("an unclosed bracket expression is matched literally", () => {
+describe("an unclosed [ is a literal [ and the rest of the pattern still applies", () => {
   const cases: Array<[string, string, boolean]> = [
     ["[a", "[a", true],
     ["a", "[a", false],
@@ -195,6 +222,13 @@ describe("an unclosed bracket expression is matched literally", () => {
     ["!", "[!]", false],
     ["a", "[!]", false],
     ["[^]", "[^]", true],
+    ["[abc", "[a*", true],
+    ["[a", "[a*", true],
+    ["xabc", "[a*", false],
+    ["[ab", "[a@(b)", true],
+    ["[a@(b)", "[a@(b)", false],
+    ["[a?", "[a\\?", true],
+    ["[ab", "[a\\?", false],
   ];
   it.each(cases)("match(%j, %j) is %j", (input, pattern, expected) => {
     expect(match(input, pattern)).toBe(expected);
