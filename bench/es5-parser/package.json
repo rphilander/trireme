@@ -1,0 +1,9 @@
+{
+  "name": "es5-parser-generator",
+  "private": true,
+  "type": "module",
+  "description": "Tooling for generating the es5-parser acceptance suite; acorn is the oracle. Not part of the job.",
+  "dependencies": {
+    "acorn": "8.18.0"
+  }
+}

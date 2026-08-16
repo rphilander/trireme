@@ -1,0 +1,15 @@
+{
+  "name": "es5-parser",
+  "version": "0.1.0",
+  "description": "An ECMAScript 5 parser producing ESTree abstract syntax trees, checked against acorn.",
+  "model": "openrouter/anthropic/claude-sonnet-5",
+  "thinking": "medium",
+  "limits": {
+    "costUsd": 3,
+    "wallClockMinutes": 30
+  },
+  "safety": {
+    "maxIterations": 40
+  },
+  "dependencies": {}
+}
