@@ -27,7 +27,8 @@ const RESULT: RunResult = {
     triremeVersion: "0.0.0",
     systemPromptHash: "abc123def456",
     model: "scripted/scripted-1",
-    thinking: "off",
+    thinking: "medium",
+    thinkingEffective: "off",
     jobHash: "0123456789abcdef",
   },
   tests: { total: 3, passed: 3, failed: 0, failures: [], truncated: 0 },
@@ -71,6 +72,13 @@ describe("the machine-readable report", () => {
 describe("the human-readable report", () => {
   it("leads with the outcome", () => {
     expect(renderReportMarkdown(INPUT)).toContain("success");
+  });
+
+  it("shows the thinking level asked for and the one the model received", () => {
+    expect(renderReportMarkdown(INPUT)).toContain("thinking: medium, received as off");
+    const same: ReportInput = { ...INPUT, result: { ...RESULT, provenance: { ...RESULT.provenance, thinking: "high", thinkingEffective: "high" } } };
+    expect(renderReportMarkdown(same)).toContain("thinking: high)");
+    expect(renderReportMarkdown(same)).not.toContain("received as");
   });
 
   it("gives the reason when there is one", () => {

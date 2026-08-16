@@ -93,7 +93,7 @@ An authentication failure, an exhausted provider quota, a network failure, or a 
 
 Every run — including a failed or aborted one — writes a run directory containing the resolved configuration, the workspace as the agent left it, the session transcript, an event log, and a report in both machine-readable and human-readable form. On success it additionally writes a packable tarball.
 
-The report carries provenance: the trireme version, the hash of the system prompt, the model, the thinking level, and a hash of the job directory. Benchmark numbers gathered across harness versions are only comparable because of these fields.
+The report carries provenance: the trireme version, the hash of the system prompt, the model, the thinking level that was asked for and the level the model actually receives — providers clamp a request to the levels a model supports, so a manifest's `medium` may reach the model as `high` and a non-reasoning model always receives `off` — and a hash of the job directory. Benchmark numbers gathered across harness versions are only comparable because of these fields.
 
 ## Constraints
 

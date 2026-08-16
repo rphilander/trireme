@@ -142,6 +142,8 @@ export async function runJob(options: RunOptions): Promise<RunResult> {
     systemPromptHash: sha256(SYSTEM_PROMPT),
     model: options.overrides?.model ?? declared?.model ?? "(unresolved)",
     thinking: options.overrides?.thinking ?? declared?.thinking ?? DEFAULT_THINKING,
+    // Refined to what the model actually receives once it is resolved.
+    thinkingEffective: options.overrides?.thinking ?? declared?.thinking ?? DEFAULT_THINKING,
     jobHash: hashJob(jobDir),
   };
 
@@ -161,6 +163,7 @@ export async function runJob(options: RunOptions): Promise<RunResult> {
   const manifest: Manifest = applyOverrides(declared!, options.overrides);
   provenance.model = manifest.model;
   provenance.thinking = manifest.thinking ?? DEFAULT_THINKING;
+  provenance.thinkingEffective = provenance.thinking;
 
   const runDir = ensureRunDir(runsDir, runId);
   const log = new EventLog(path.join(runDir, "events.jsonl"));
@@ -238,7 +241,15 @@ export async function runJob(options: RunOptions): Promise<RunResult> {
     });
 
     ledger = new RunLedger({ priced: session.priced });
-    log.write({ type: "model_resolved", model: session.modelRef, priced: session.priced, ...session.limits });
+    provenance.thinkingEffective = session.thinkingEffective;
+    log.write({
+      type: "model_resolved",
+      model: session.modelRef,
+      priced: session.priced,
+      thinking: provenance.thinking,
+      thinkingEffective: session.thinkingEffective,
+      ...session.limits,
+    });
 
     const wallClockCapMs = manifest.limits.wallClockMinutes * 60_000;
 

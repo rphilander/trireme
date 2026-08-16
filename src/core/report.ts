@@ -111,7 +111,11 @@ export function renderReportMarkdown(input: ReportInput): string {
 
   lines.push("## Provenance", "");
   lines.push(`- trireme: ${provenance.triremeVersion}`);
-  lines.push(`- model: ${provenance.model} (thinking: ${provenance.thinking})`);
+  const thinking =
+    provenance.thinkingEffective === provenance.thinking
+      ? `thinking: ${provenance.thinking}`
+      : `thinking: ${provenance.thinking}, received as ${provenance.thinkingEffective}`;
+  lines.push(`- model: ${provenance.model} (${thinking})`);
   lines.push(`- system prompt: \`${provenance.systemPromptHash}\``);
   lines.push(`- job: \`${provenance.jobHash}\``);
   lines.push("");

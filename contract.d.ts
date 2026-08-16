@@ -162,7 +162,14 @@ export interface Provenance {
   triremeVersion: string;
   systemPromptHash: string;
   model: string;
+  /** The level the manifest or CLI asked for. */
   thinking: ThinkingLevel;
+  /**
+   * The level the model actually receives: the runtime clamps the request to
+   * the levels the model supports (a reasoning model without `medium` gets
+   * `high`; a non-reasoning model gets `off`). Compare runs on this one.
+   */
+  thinkingEffective: ThinkingLevel;
   jobHash: string;
 }
 

@@ -36,6 +36,13 @@ def load(run_dir: Path):
         "mod_tests": sum(len(m["tests"]) for m in report.get("modules", [])),
         "prompt": report["provenance"]["systemPromptHash"][:8],
         "model": report["provenance"]["model"].split("/")[-1],
+        # Requested thinking level, and what the model actually received when
+        # the report records it (runs before 2026-08-16 22:00 UTC do not).
+        "thinking": (
+            report["provenance"]["thinking"]
+            if report["provenance"].get("thinkingEffective") in (None, report["provenance"]["thinking"])
+            else f'{report["provenance"]["thinking"]}>{report["provenance"]["thinkingEffective"]}'
+        ),
         "gates": len(gates),
         "top_calls": ", ".join(f"{k}×{v}" for k, v in calls.most_common(4)),
     }
@@ -43,7 +50,7 @@ def load(run_dir: Path):
 
 def main(argv):
     rows = [load(Path(p)) for p in argv]
-    cols = ["id", "prompt", "model", "outcome", "tests", "iter", "msgs", "calls", "errors", "cost", "wall_s", "modules", "mod_tests"]
+    cols = ["id", "prompt", "model", "thinking", "outcome", "tests", "iter", "msgs", "calls", "errors", "cost", "wall_s", "modules", "mod_tests"]
     widths = {c: max(len(c), *(len(f"{r[c]:.3f}" if isinstance(r[c], float) else str(r[c])) for r in rows)) for c in cols}
     fmt = lambda r, c: (f"{r[c]:.3f}" if isinstance(r[c], float) else str(r[c])).ljust(widths[c])
     print("  ".join(c.ljust(widths[c]) for c in cols))

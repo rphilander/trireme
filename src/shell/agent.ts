@@ -15,6 +15,7 @@ import {
   getAgentDir,
 } from "@earendil-works/pi-coding-agent";
 import type { AgentSession, InlineExtension, ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { clampThinkingLevel } from "@earendil-works/pi-ai";
 import path from "node:path";
 import type { ThinkingLevel } from "../core/types.ts";
 
@@ -56,6 +57,13 @@ export interface HarnessSession {
   /** Whether the provider publishes per-token prices. */
   priced: boolean;
   modelRef: string;
+  /**
+   * The thinking level the model will actually receive. The runtime clamps
+   * the requested level to what the model supports — a reasoning model that
+   * knows only `high` and `max` receives `high` for `medium`; a model that
+   * does not reason receives `off`.
+   */
+  thinkingEffective: ThinkingLevel;
   /** The resolved model's limits, as the runtime will enforce them. */
   limits: { maxTokens: number; contextWindow: number; reasoning: boolean };
 }
@@ -148,6 +156,7 @@ export async function createHarnessSession(options: SessionOptions): Promise<Har
     session,
     priced: isPriced(model),
     modelRef: options.model,
+    thinkingEffective: clampThinkingLevel(model, options.thinking) as ThinkingLevel,
     limits: {
       maxTokens: resolved.maxTokens ?? 0,
       contextWindow: resolved.contextWindow ?? 0,

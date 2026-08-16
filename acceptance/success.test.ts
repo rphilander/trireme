@@ -11,14 +11,14 @@ afterEach(() => {
   job = undefined;
 });
 
-async function build() {
+async function build(overrides: { thinking?: "medium" } = {}) {
   job = makeJob();
   const agent = buildsCorrectly();
   const result = await run({
     jobDir: job.dir,
     runsDir: job.runsDir,
     extensions: [agent.extension],
-    overrides: { model: agent.modelRef },
+    overrides: { model: agent.modelRef, ...overrides },
   });
   return { result, agent, job };
 }
@@ -102,11 +102,15 @@ describe("what a run leaves behind", () => {
   });
 
   it("carries the provenance that makes two runs comparable", async () => {
-    const { result } = await build();
+    const { result } = await build({ thinking: "medium" });
     expect(result.provenance.triremeVersion).toMatch(/\d+\.\d+\.\d+/);
     expect(result.provenance.systemPromptHash).toMatch(/^[0-9a-f]{8,}$/);
     expect(result.provenance.jobHash).toMatch(/^[0-9a-f]{8,}$/);
     expect(result.provenance.model).toContain("scripted");
+    // The scripted model does not reason: whatever was asked for, the model
+    // receives "off", and provenance records both sides.
+    expect(result.provenance.thinking).toBe("medium");
+    expect(result.provenance.thinkingEffective).toBe("off");
   });
 
   it("gives the same job the same hash and different jobs different hashes", async () => {

@@ -106,7 +106,10 @@ export interface Provenance {
   triremeVersion: string;
   systemPromptHash: string;
   model: string;
+  /** Requested. */
   thinking: ThinkingLevel;
+  /** What the model actually receives after the runtime clamps to what it supports. */
+  thinkingEffective: ThinkingLevel;
   jobHash: string;
 }
 
