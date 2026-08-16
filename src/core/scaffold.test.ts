@@ -7,7 +7,7 @@
  * varying part of a run directory.
  */
 import { describe, expect, it } from "vitest";
-import { GENERATED_PATHS, scaffoldWorkspace } from "./scaffold.ts";
+import { GENERATED_PATHS, scaffoldWorkspace, workspacePackageJson } from "./scaffold.ts";
 import type { Manifest } from "./types.ts";
 
 const MANIFEST: Manifest = {
@@ -88,6 +88,30 @@ describe("determinism", () => {
     expect(scaffoldWorkspace(MANIFEST).map((f) => f.path)).toEqual(
       scaffoldWorkspace(MANIFEST).map((f) => f.path),
     );
+  });
+});
+
+describe("modules are importable by name", () => {
+  it("maps each declared module to its index in package.json imports", () => {
+    const packageJson = JSON.parse(workspacePackageJson(MANIFEST, ["tokenizer", "ranges"]));
+    expect(packageJson.imports).toEqual({
+      "#ranges": "./src/modules/ranges/index.ts",
+      "#tokenizer": "./src/modules/tokenizer/index.ts",
+    });
+  });
+
+  it("emits no imports key at all when there are no modules, so the initial scaffold is unchanged", () => {
+    const packageJson = JSON.parse(workspacePackageJson(MANIFEST, []));
+    expect("imports" in packageJson).toBe(false);
+    expect(workspacePackageJson(MANIFEST, [])).toBe(fileMap(MANIFEST).get("package.json"));
+  });
+
+  it("is a pure function of manifest and modules, in any order", () => {
+    expect(workspacePackageJson(MANIFEST, ["b", "a"])).toBe(workspacePackageJson(MANIFEST, ["a", "b"]));
+  });
+
+  it("returns to the initial bytes when every module is deleted", () => {
+    expect(workspacePackageJson(MANIFEST, [])).toBe(fileMap(MANIFEST).get("package.json"));
   });
 });
 

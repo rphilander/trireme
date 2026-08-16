@@ -18,6 +18,7 @@ import { evaluateBudgets, evaluateIteration } from "../core/policy.ts";
 import type { PolicyState } from "../core/policy.ts";
 import { SYSTEM_PROMPT, firstMessage } from "../core/prompt.ts";
 import { renderReportJson, renderReportMarkdown } from "../core/report.ts";
+import { workspacePackageJson } from "../core/scaffold.ts";
 import { sha256 } from "../core/hash.ts";
 import { validateJob } from "../core/job.ts";
 import type {
@@ -214,9 +215,20 @@ export async function runJob(options: RunOptions): Promise<RunResult> {
         contract: jobFiles.contractText ?? "",
         acceptanceFiles: workspace.acceptanceFiles,
         graph,
-        runner,
+        checker: runner,
         onMutation: () => {
           mutated = true;
+        },
+        // The workspace's package.json maps every `#module` import to its
+        // index; it follows the graph so the agent never learns a path.
+        onGraphChange: () => {
+          fs.writeFileSync(
+            path.join(workspace.root, "package.json"),
+            workspacePackageJson(
+              manifest,
+              graph.list().map((m) => m.name),
+            ),
+          );
         },
       }),
       extensions: options.extensions ?? [],
@@ -340,6 +352,7 @@ export async function runJob(options: RunOptions): Promise<RunResult> {
           workspace: workspace.root,
           outDir: path.join(runDir, "artifact"),
           manifest,
+          modules: graph.list().map((m) => m.name),
         });
         outcome = "success";
         reason = "";

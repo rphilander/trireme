@@ -8,6 +8,10 @@
  *
  * Where a call cannot be honoured the tool throws with a message naming what to
  * do instead. That becomes an error tool result; it does not end the run.
+ *
+ * Every mutating tool carries a status footer: the harness runs the cheap
+ * checks itself the moment the workspace changes, so the agent learns where it
+ * stands without spending a turn to ask.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -20,6 +24,7 @@ import {
   MODULES_DIR,
   moduleDir,
   moduleFilePath,
+  moduleImportSpecifier,
   normalizeImplFile,
   normalizeModuleName,
   normalizeTestFile,
@@ -27,10 +32,18 @@ import {
 } from "../core/layout.ts";
 import type { Resolution } from "../core/layout.ts";
 import type { BuildGraph } from "../core/graph.ts";
-import type { Runner } from "./runner.ts";
+import { renderStatus } from "../core/status.ts";
 import type { TestSummary } from "../core/types.ts";
 
 const READ_LIMIT = 80_000;
+
+export type TestScope = { kind: "acceptance" } | { kind: "module"; module: string };
+
+/** What the tools need from the runner: the checks, nothing about processes. */
+export interface Checker {
+  typecheck(): Promise<{ ok: boolean; diagnostics: string[] }>;
+  runTests(scope: TestScope): Promise<{ ok: boolean; summary: TestSummary; error?: string }>;
+}
 
 export interface ToolContext {
   workspace: string;
@@ -38,9 +51,11 @@ export interface ToolContext {
   contract: string;
   acceptanceFiles: string[];
   graph: BuildGraph;
-  runner: Runner;
+  checker: Checker;
   /** Called whenever a tool changed the workspace. Feeds the no-progress rule. */
   onMutation: () => void;
+  /** Called when a module was declared or deleted, so the layout can follow. */
+  onGraphChange: () => void;
 }
 
 const text = (value: string) => ({ content: [{ type: "text" as const, text: value }], details: {} });
@@ -105,6 +120,51 @@ function renderSummary(label: string, summary: TestSummary): string {
   return lines.join("\n");
 }
 
+const didNotRun = (what: string, error: unknown): TestSummary => ({
+  total: 0,
+  passed: 0,
+  failed: 1,
+  truncated: 0,
+  failures: [
+    {
+      file: what,
+      name: "(did not run)",
+      message: error instanceof Error ? error.message : String(error),
+    },
+  ],
+});
+
+/**
+ * The checks the harness runs after every mutation, concurrently: they are
+ * independent subprocesses and the slowest of them bounds the wait. A check
+ * that fails to run reports that; it never fails the write it rides on.
+ */
+async function statusAfter(context: ToolContext, touchedModule: string | undefined): Promise<string> {
+  const [typecheck, acceptance, moduleTests] = await Promise.all([
+    context.checker.typecheck().catch((error: unknown) => ({
+      ok: false,
+      diagnostics: [`typecheck did not run: ${error instanceof Error ? error.message : String(error)}`],
+    })),
+    context.checker
+      .runTests({ kind: "acceptance" })
+      .then((run) => run.summary)
+      .catch((error: unknown) => didNotRun("acceptance", error)),
+    touchedModule === undefined
+      ? Promise.resolve(undefined)
+      : context.checker
+          .runTests({ kind: "module", module: touchedModule })
+          .then((run) => run.summary)
+          .catch((error: unknown) => didNotRun(touchedModule, error)),
+  ]);
+  return renderStatus({
+    typecheck,
+    acceptance,
+    ...(touchedModule !== undefined && moduleTests
+      ? { module: { name: touchedModule, tests: moduleTests } }
+      : {}),
+  });
+}
+
 const EDIT_PARAMS = {
   find: Type.String({ description: "Exact text to find. Must appear in the file." }),
   replace: Type.String({ description: "Text to put in its place." }),
@@ -116,6 +176,22 @@ const FILE_PARAM = Type.String({ description: "File name within the module. No p
 
 export function createTools(context: ToolContext): ToolDefinition[] {
   const { workspace } = context;
+
+  /**
+   * Runs a mutation, then appends the status footer. `touched` names the module
+   * whose tests belong in the footer, or nothing when the module no longer
+   * exists or the entry point was the target.
+   */
+  async function mutate(
+    message: string,
+    touched: string | undefined,
+    apply: () => void,
+  ): Promise<ReturnType<typeof text>> {
+    apply();
+    context.onMutation();
+    const footer = await statusAfter(context, touched);
+    return text(`${message}\n${footer}`);
+  }
 
   const readSpec = defineTool({
     name: "read_spec",
@@ -183,10 +259,10 @@ export function createTools(context: ToolContext): ToolDefinition[] {
     description: "Replace the entry point's contents. Prefer edit_entry for a small change.",
     promptSnippet: "write_entry / edit_entry — write it",
     parameters: Type.Object({ content: Type.String() }),
-    async execute(_id, params) {
-      writeFile(workspace, ENTRY_PATH, params.content);
-      context.onMutation();
-      return text("Wrote the entry point.");
+    execute(_id, params) {
+      return mutate("Wrote the entry point.", undefined, () => {
+        writeFile(workspace, ENTRY_PATH, params.content);
+      });
     },
   });
 
@@ -195,18 +271,19 @@ export function createTools(context: ToolContext): ToolDefinition[] {
     label: "edit entry point",
     description: "Replace an exact fragment of the entry point.",
     parameters: Type.Object(EDIT_PARAMS),
-    async execute(_id, params) {
+    execute(_id, params) {
       const current = readFile(workspace, ENTRY_PATH);
-      writeFile(workspace, ENTRY_PATH, applyEdit(current, params.find, params.replace, params.replaceAll ?? false));
-      context.onMutation();
-      return text("Edited the entry point.");
+      const next = applyEdit(current, params.find, params.replace, params.replaceAll ?? false);
+      return mutate("Edited the entry point.", undefined, () => {
+        writeFile(workspace, ENTRY_PATH, next);
+      });
     },
   });
 
   const listModules = defineTool({
     name: "list_modules",
     label: "list modules",
-    description: "List the modules you have declared, with their purpose and their files.",
+    description: "List the modules you have declared: purpose, import name, files and tests.",
     promptSnippet: "list_modules / declare_module — decompose the work",
     parameters: Type.Object({}),
     async execute() {
@@ -214,11 +291,13 @@ export function createTools(context: ToolContext): ToolDefinition[] {
       if (modules.length === 0) return text("No modules have been declared yet.");
       return text(
         modules
-          .map(
-            (module) =>
-              `${module.name} — ${module.purpose}\n  files: ${module.files.join(", ") || "none"}\n  tests: ${
-                module.tests.join(", ") || "none"
-              }`,
+          .map((module) =>
+            [
+              `${module.name} — ${module.purpose}`,
+              `  import: ${moduleImportSpecifier(module.name)}`,
+              `  files: ${module.files.join(", ") || "none"}`,
+              `  tests: ${module.tests.join(", ") || "none"}`,
+            ].join("\n"),
           )
           .join("\n"),
       );
@@ -229,20 +308,30 @@ export function createTools(context: ToolContext): ToolDefinition[] {
     name: "declare_module",
     label: "declare module",
     description:
-      "Declare a module and say what it is for. A module is a flat directory of files with its own tests.",
+      "Declare a module and say what it is for. A module is a flat directory of files with its own tests; " +
+      "its public surface is its index.ts, and it is imported anywhere by name.",
     parameters: Type.Object({
       name: Type.String({ description: "Lowercase, dashes allowed." }),
       purpose: Type.String({ description: "One or two sentences: what this module is responsible for." }),
     }),
-    async execute(_id, params) {
+    execute(_id, params) {
       const name = unwrap(normalizeModuleName(params.name));
       if (params.purpose.trim().length === 0) {
         throw new Error("A module needs a stated purpose; that is what makes it a module and not a file.");
       }
-      const { created } = context.graph.declare(name, params.purpose.trim());
-      fs.mkdirSync(path.join(workspace, moduleDir(name)), { recursive: true });
-      context.onMutation();
-      return text(created ? `Declared module "${name}".` : `Updated the purpose of module "${name}".`);
+      let created = false;
+      return mutate("", undefined, () => {
+        created = context.graph.declare(name, params.purpose.trim()).created;
+        fs.mkdirSync(path.join(workspace, moduleDir(name)), { recursive: true });
+        context.onGraphChange();
+      }).then((result) => {
+        const specifier = moduleImportSpecifier(name);
+        const head = created
+          ? `Declared module "${name}". Its public surface is index.ts; import it anywhere as \`${specifier}\`. ` +
+            `Files inside the module import each other as "./file.js".`
+          : `Updated the purpose of module "${name}". It is still imported as \`${specifier}\`.`;
+        return text(`${head}${result.content[0]!.text}`);
+      });
     },
   });
 
@@ -264,13 +353,13 @@ export function createTools(context: ToolContext): ToolDefinition[] {
     label: "write module file",
     description: "Write an implementation file inside a module. Use write_module_test for its tests.",
     parameters: Type.Object({ module: MODULE_PARAM, file: FILE_PARAM, content: Type.String() }),
-    async execute(_id, params) {
+    execute(_id, params) {
       const module = requireModule(context, params.module);
       const file = unwrap(normalizeImplFile(params.file));
-      writeFile(workspace, moduleFilePath(module, file), params.content);
-      context.graph.addFile(module, file);
-      context.onMutation();
-      return text(`Wrote ${file} in module "${module}".`);
+      return mutate(`Wrote ${file} in module "${module}".`, module, () => {
+        writeFile(workspace, moduleFilePath(module, file), params.content);
+        context.graph.addFile(module, file);
+      });
     },
   });
 
@@ -279,14 +368,14 @@ export function createTools(context: ToolContext): ToolDefinition[] {
     label: "edit module file",
     description: "Replace an exact fragment of an implementation file inside a module.",
     parameters: Type.Object({ module: MODULE_PARAM, file: FILE_PARAM, ...EDIT_PARAMS }),
-    async execute(_id, params) {
+    execute(_id, params) {
       const module = requireModule(context, params.module);
       const file = unwrap(normalizeImplFile(params.file));
       const relative = moduleFilePath(module, file);
-      const current = readFile(workspace, relative);
-      writeFile(workspace, relative, applyEdit(current, params.find, params.replace, params.replaceAll ?? false));
-      context.onMutation();
-      return text(`Edited ${file} in module "${module}".`);
+      const next = applyEdit(readFile(workspace, relative), params.find, params.replace, params.replaceAll ?? false);
+      return mutate(`Edited ${file} in module "${module}".`, module, () => {
+        writeFile(workspace, relative, next);
+      });
     },
   });
 
@@ -295,15 +384,15 @@ export function createTools(context: ToolContext): ToolDefinition[] {
     label: "delete module file",
     description: "Delete an implementation file from a module.",
     parameters: Type.Object({ module: MODULE_PARAM, file: FILE_PARAM }),
-    async execute(_id, params) {
+    execute(_id, params) {
       const module = requireModule(context, params.module);
       const file = unwrap(normalizeImplFile(params.file));
       const target = path.join(workspace, moduleFilePath(module, file));
       if (!fs.existsSync(target)) throw new Error(`Module "${module}" has no file called ${file}.`);
-      fs.rmSync(target);
-      context.graph.removeFile(module, file);
-      context.onMutation();
-      return text(`Deleted ${file} from module "${module}".`);
+      return mutate(`Deleted ${file} from module "${module}".`, module, () => {
+        fs.rmSync(target);
+        context.graph.removeFile(module, file);
+      });
     },
   });
 
@@ -326,13 +415,13 @@ export function createTools(context: ToolContext): ToolDefinition[] {
     description:
       "Write a test file for a module. These are yours to write and run; they are not the acceptance suite.",
     parameters: Type.Object({ module: MODULE_PARAM, file: FILE_PARAM, content: Type.String() }),
-    async execute(_id, params) {
+    execute(_id, params) {
       const module = requireModule(context, params.module);
       const file = unwrap(normalizeTestFile(params.file));
-      writeFile(workspace, moduleFilePath(module, file), params.content);
-      context.graph.addTest(module, file);
-      context.onMutation();
-      return text(`Wrote ${file} in module "${module}".`);
+      return mutate(`Wrote ${file} in module "${module}".`, module, () => {
+        writeFile(workspace, moduleFilePath(module, file), params.content);
+        context.graph.addTest(module, file);
+      });
     },
   });
 
@@ -341,14 +430,14 @@ export function createTools(context: ToolContext): ToolDefinition[] {
     label: "edit module test",
     description: "Replace an exact fragment of a module's test file.",
     parameters: Type.Object({ module: MODULE_PARAM, file: FILE_PARAM, ...EDIT_PARAMS }),
-    async execute(_id, params) {
+    execute(_id, params) {
       const module = requireModule(context, params.module);
       const file = unwrap(normalizeTestFile(params.file));
       const relative = moduleFilePath(module, file);
-      const current = readFile(workspace, relative);
-      writeFile(workspace, relative, applyEdit(current, params.find, params.replace, params.replaceAll ?? false));
-      context.onMutation();
-      return text(`Edited ${file} in module "${module}".`);
+      const next = applyEdit(readFile(workspace, relative), params.find, params.replace, params.replaceAll ?? false);
+      return mutate(`Edited ${file} in module "${module}".`, module, () => {
+        writeFile(workspace, relative, next);
+      });
     },
   });
 
@@ -357,15 +446,15 @@ export function createTools(context: ToolContext): ToolDefinition[] {
     label: "delete module test",
     description: "Delete a test file from a module.",
     parameters: Type.Object({ module: MODULE_PARAM, file: FILE_PARAM }),
-    async execute(_id, params) {
+    execute(_id, params) {
       const module = requireModule(context, params.module);
       const file = unwrap(normalizeTestFile(params.file));
       const target = path.join(workspace, moduleFilePath(module, file));
       if (!fs.existsSync(target)) throw new Error(`Module "${module}" has no test called ${file}.`);
-      fs.rmSync(target);
-      context.graph.removeTest(module, file);
-      context.onMutation();
-      return text(`Deleted ${file} from module "${module}".`);
+      return mutate(`Deleted ${file} from module "${module}".`, module, () => {
+        fs.rmSync(target);
+        context.graph.removeTest(module, file);
+      });
     },
   });
 
@@ -374,12 +463,13 @@ export function createTools(context: ToolContext): ToolDefinition[] {
     label: "delete module",
     description: "Delete a module and everything in it.",
     parameters: Type.Object({ module: MODULE_PARAM }),
-    async execute(_id, params) {
+    execute(_id, params) {
       const module = requireModule(context, params.module);
-      fs.rmSync(path.join(workspace, moduleDir(module)), { recursive: true, force: true });
-      context.graph.remove(module);
-      context.onMutation();
-      return text(`Deleted module "${module}".`);
+      return mutate(`Deleted module "${module}".`, undefined, () => {
+        fs.rmSync(path.join(workspace, moduleDir(module)), { recursive: true, force: true });
+        context.graph.remove(module);
+        context.onGraphChange();
+      });
     },
   });
 
@@ -387,11 +477,12 @@ export function createTools(context: ToolContext): ToolDefinition[] {
     name: "run_acceptance_tests",
     label: "run acceptance tests",
     description:
-      "Run the acceptance suite and see the result. This does not decide anything; the harness runs its own gate.",
-    promptSnippet: "run_acceptance_tests / run_module_tests / typecheck — see where you stand",
+      "Run the acceptance suite and see every failure in detail. The score already appears after each change; " +
+      "this is for the detail. It decides nothing — the harness runs its own gate.",
+    promptSnippet: "run_acceptance_tests / run_module_tests / typecheck — the detail behind the status",
     parameters: Type.Object({}),
     async execute() {
-      const run = await context.runner.runTests({ kind: "acceptance" });
+      const run = await context.checker.runTests({ kind: "acceptance" });
       return text(renderSummary("Acceptance suite", run.summary));
     },
   });
@@ -399,12 +490,12 @@ export function createTools(context: ToolContext): ToolDefinition[] {
   const runModuleTests = defineTool({
     name: "run_module_tests",
     label: "run module tests",
-    description: "Run one module's own test suite.",
+    description: "Run one module's own test suite and see every failure in detail.",
     parameters: Type.Object({ module: MODULE_PARAM }),
     async execute(_id, params) {
       const module = requireModule(context, params.module);
-      const run = await context.runner.runTests({ kind: "module", module });
-      if (run.summary.total === 0) {
+      const run = await context.checker.runTests({ kind: "module", module });
+      if (run.summary.total === 0 && run.summary.failed === 0) {
         return text(`Module "${module}" has no tests yet.`);
       }
       return text(renderSummary(`Module "${module}"`, run.summary));
@@ -414,10 +505,11 @@ export function createTools(context: ToolContext): ToolDefinition[] {
   const typecheck = defineTool({
     name: "typecheck",
     label: "typecheck",
-    description: "Typecheck the implementation, the acceptance suite and the contract together.",
+    description:
+      "Typecheck the implementation, the acceptance suite and the contract together, and see every diagnostic.",
     parameters: Type.Object({}),
     async execute() {
-      const check = await context.runner.typecheck();
+      const check = await context.checker.typecheck();
       if (check.ok) return text("The typecheck passes.");
       return text(
         [`The typecheck reports ${check.diagnostics.length} problem(s):`, "", ...check.diagnostics].join("\n"),

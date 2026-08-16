@@ -5,6 +5,7 @@
  * reads a clock, a path or the environment. The generated files are not
  * addressable by any tool, so the agent cannot rewrite the rules it works under.
  */
+import { moduleImportSpecifier, moduleImportTarget } from "./layout.ts";
 import type { Manifest } from "./types.ts";
 
 export interface GeneratedFile {
@@ -23,13 +24,24 @@ export const GENERATED_PATHS: readonly string[] = [
 
 const json = (value: unknown) => `${JSON.stringify(value, null, 2)}\n`;
 
-function packageJson(manifest: Manifest): string {
+/**
+ * The workspace's package.json. A pure function of the manifest and the set of
+ * declared modules: the harness rewrites it whenever a module is declared or
+ * deleted, which is how `#name` imports resolve without the agent ever knowing
+ * where a module lives.
+ */
+export function workspacePackageJson(manifest: Manifest, modules: readonly string[]): string {
   const value: Record<string, unknown> = { name: manifest.name, version: manifest.version };
   if (manifest.description !== undefined) value["description"] = manifest.description;
   value["type"] = "module";
   // Tests run on source, so the package resolves to TypeScript. The artifact's
   // manifest is written by the packer and points at the build output instead.
   value["exports"] = { ".": "./src/index.ts" };
+  if (modules.length > 0) {
+    value["imports"] = Object.fromEntries(
+      [...modules].sort().map((module) => [moduleImportSpecifier(module), moduleImportTarget(module)]),
+    );
+  }
   return json(value);
 }
 
@@ -96,7 +108,7 @@ export {};
 
 export function scaffoldWorkspace(manifest: Manifest): GeneratedFile[] {
   return [
-    { path: "package.json", content: packageJson(manifest) },
+    { path: "package.json", content: workspacePackageJson(manifest, []) },
     { path: "tsconfig.json", content: TSCONFIG },
     { path: "tsconfig.build.json", content: TSCONFIG_BUILD },
     { path: "vitest.config.ts", content: VITEST_CONFIG },

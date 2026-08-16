@@ -55,6 +55,10 @@ File names are normalised rather than ruled upon: `tokenizer` and `tokenizer.ts`
 
 A tool call that cannot be honoured returns an error result naming what to do instead. It does not abort the run.
 
+A module is imported by name from anywhere in the package — `import { x } from "#name"` — never by a path. Trireme keeps that name resolving: the workspace's `package.json` maps each declared module's `#name` to its `index.ts`, and the packed artifact's `package.json` maps it to the built module. Files inside one module import each other as siblings. The agent never learns where a module lives, and `declare_module` tells it how to import the module it just declared.
+
+Every mutating tool result carries a short status footer: the harness runs the typecheck, the acceptance suite and the touched module's tests the moment the workspace changes, and reports the result as counts. This is bounded and informational — a workspace mid-change is expected to be red — and the explicit `typecheck`, `run_acceptance_tests` and `run_module_tests` tools remain for the detail. Reads carry no footer, because nothing changed.
+
 ### The loop
 
 Trireme opens one agent session, seeded with a system prompt describing the method and a first message carrying the spec, the contract and the names of the acceptance test files. It then repeats:

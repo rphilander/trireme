@@ -9,6 +9,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
+import { moduleImportSpecifier } from "../core/layout.ts";
 import { listFilesRecursively } from "./store.ts";
 
 /** npm's own reproducible-build timestamp; any fixed value would do. */
@@ -59,16 +60,27 @@ export interface PackOptions {
   workspace: string;
   outDir: string;
   manifest: { name: string; version: string; description?: string };
+  /** Declared modules, so their `#name` imports resolve inside the artifact. */
+  modules?: readonly string[];
 }
 
-/** The manifest that ships, as opposed to the one the test run resolves against. */
-function publishedManifest(manifest: PackOptions["manifest"]): string {
+/**
+ * The manifest that ships, as opposed to the one the test run resolves against.
+ * The build emits `#name` specifiers verbatim; this is where they are pointed at
+ * the built module rather than its source.
+ */
+function publishedManifest(manifest: PackOptions["manifest"], modules: readonly string[]): string {
   const value: Record<string, unknown> = { name: manifest.name, version: manifest.version };
   if (manifest.description !== undefined) value["description"] = manifest.description;
   value["type"] = "module";
   value["main"] = "./dist/index.js";
   value["types"] = "./dist/index.d.ts";
   value["exports"] = { ".": { types: "./dist/index.d.ts", import: "./dist/index.js" } };
+  if (modules.length > 0) {
+    value["imports"] = Object.fromEntries(
+      [...modules].sort().map((module) => [moduleImportSpecifier(module), `./dist/modules/${module}/index.js`]),
+    );
+  }
   value["files"] = ["dist"];
   return `${JSON.stringify(value, null, 2)}\n`;
 }
@@ -81,7 +93,10 @@ export function packWorkspace(options: PackOptions): string {
   }
 
   const entries = [
-    { name: "package/package.json", content: Buffer.from(publishedManifest(options.manifest)) },
+    {
+      name: "package/package.json",
+      content: Buffer.from(publishedManifest(options.manifest, options.modules ?? [])),
+    },
     ...built
       .slice()
       .sort()

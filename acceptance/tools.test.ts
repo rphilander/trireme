@@ -5,11 +5,30 @@
  * what matters is what the agent can and cannot cause to happen.
  */
 import { afterEach, describe, expect, it } from "vitest";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import zlib from "node:zlib";
 import { run } from "trireme";
 import { CORRECT_IMPLEMENTATION, makeJob, readIfPresent, type TempJob } from "./support/job.ts";
 import { scriptedProvider } from "./support/scripted-provider.ts";
+
+/** Reads a gzipped ustar tarball into name → content. Independent of the packer. */
+function readTarball(file: string): Map<string, string> {
+  const raw = zlib.gunzipSync(fs.readFileSync(file));
+  const entries = new Map<string, string>();
+  let offset = 0;
+  while (offset + 512 <= raw.length) {
+    const header = raw.subarray(offset, offset + 512);
+    const name = header.subarray(0, 100).toString("utf8").replace(/\0.*$/, "");
+    if (name === "") break;
+    const size = Number.parseInt(header.subarray(124, 136).toString("utf8").replace(/[\0 ].*$/, ""), 8);
+    if (header[156] === 0x30) entries.set(name, raw.subarray(offset + 512, offset + 512 + size).toString("utf8"));
+    offset += 512 + Math.ceil(size / 512) * 512;
+  }
+  return entries;
+}
 
 let job: TempJob | undefined;
 afterEach(() => {
@@ -110,6 +129,67 @@ describe("modules", () => {
     );
     const text = JSON.stringify(events);
     expect(text).toContain("write_module_test");
+  });
+
+  it("lets a module be imported by name, from the entry point through to the artifact", async () => {
+    // The agent never learns where a module lives. It declares one, is told to
+    // import it as #name, and does. That has to resolve for the typecheck, for
+    // the acceptance suite, and inside the packed artifact when Node runs it.
+    job = makeJob({ manifest: { safety: { maxIterations: 2 } } });
+    const agent = performs([
+      { name: "declare_module", arguments: { name: "arith", purpose: "Arithmetic helpers." } },
+      {
+        name: "write_module_file",
+        arguments: {
+          module: "arith",
+          file: "index",
+          content:
+            "export function plus(a: number, b: number): number { return a + b; }\n" +
+            "export function times(a: number, b: number): number { return a * b; }\n",
+        },
+      },
+      {
+        name: "write_entry",
+        arguments: {
+          content:
+            'import { plus, times } from "#arith";\n' +
+            "export function add(a: number, b: number): number { return plus(a, b); }\n" +
+            "export function mul(a: number, b: number): number { return times(a, b); }\n",
+        },
+      },
+    ]);
+    const result = await run({
+      jobDir: job.dir,
+      runsDir: job.runsDir,
+      extensions: [agent.extension],
+      overrides: { model: agent.modelRef },
+    });
+
+    expect(result.outcome).toBe("success");
+    const events = (readIfPresent(path.join(result.runDir, "events.jsonl")) ?? "").split("\n").join(" ");
+    expect(events).toContain("#arith");
+
+    const artifact = readTarball(result.artifactPath!);
+    const packaged = JSON.parse(artifact.get("package/package.json")!);
+    expect(packaged.imports).toEqual({ "#arith": "./dist/modules/arith/index.js" });
+    expect(artifact.get("package/dist/index.js")).toContain('from "#arith"');
+
+    const unpacked = fs.mkdtempSync(path.join(os.tmpdir(), "trireme-artifact-"));
+    try {
+      for (const [name, content] of artifact) {
+        const target = path.join(unpacked, name);
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        fs.writeFileSync(target, content);
+      }
+      const { stdout } = spawnSync(
+        process.execPath,
+        ["--input-type=module", "-e", `import { add, mul } from "${unpacked}/package/dist/index.js"; console.log(add(2, 3), mul(2, 3));`],
+        { encoding: "utf8" },
+      );
+      expect(stdout.trim()).toBe("5 6");
+    } finally {
+      fs.rmSync(unpacked, { recursive: true, force: true });
+    }
   });
 
   it("survives a tool call it cannot honour, rather than ending the run", async () => {

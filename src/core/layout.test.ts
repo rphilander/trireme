@@ -13,6 +13,8 @@ import {
   MODULES_DIR,
   moduleDir,
   moduleFilePath,
+  moduleImportSpecifier,
+  moduleImportTarget,
   normalizeImplFile,
   normalizeModuleName,
   normalizeTestFile,
@@ -101,6 +103,16 @@ describe("paths", () => {
 
   it("keeps the entry point where the scaffold put it", () => {
     expect(ENTRY_PATH).toBe("src/index.ts");
+  });
+});
+
+describe("importing a module", () => {
+  it("is by name, from anywhere, never by relative path", () => {
+    expect(moduleImportSpecifier("tokenizer")).toBe("#tokenizer");
+  });
+
+  it("maps to the module's index on the workspace side", () => {
+    expect(moduleImportTarget("tokenizer")).toBe(`./${MODULES_DIR}/tokenizer/index.ts`);
   });
 });
 

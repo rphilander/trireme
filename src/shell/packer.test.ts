@@ -89,6 +89,23 @@ describe("what goes into the artifact", () => {
     expect(names).not.toContain("package/src/");
   });
 
+  it("remaps module imports to the build output, so #name resolves in the artifact too", () => {
+    const dir = workspace(BUILT);
+    const entries = entriesOf(
+      packWorkspace({ workspace: dir, outDir: path.join(dir, "out"), manifest: MANIFEST, modules: ["arith"] }),
+    );
+    const packaged = JSON.parse(entries.get("package/package.json")!);
+    expect(packaged.imports).toEqual({ "#arith": "./dist/modules/arith/index.js" });
+  });
+
+  it("omits the imports key when there are no modules", () => {
+    const dir = workspace(BUILT);
+    const entries = entriesOf(
+      packWorkspace({ workspace: dir, outDir: path.join(dir, "out"), manifest: MANIFEST }),
+    );
+    expect("imports" in JSON.parse(entries.get("package/package.json")!)).toBe(false);
+  });
+
   it("writes a manifest that points at the build, not at the source", () => {
     const dir = workspace(BUILT);
     const entries = entriesOf(

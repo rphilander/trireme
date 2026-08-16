@@ -20,10 +20,9 @@ A harness — not you — runs the gate after every turn you take:
 2. the implementation typechecks against the contract,
 3. the package builds.
 
-You cannot see the gate's verdict directly and you cannot declare yourself
-done. If the run continues, the gate failed, and you will be told how. Saying
-that the work is complete changes nothing; writing code that passes the suite
-is the only thing that does.
+You cannot declare yourself done. If the run continues, the gate failed, and
+you will be told how. Saying that the work is complete changes nothing;
+writing code that passes the suite is the only thing that does.
 
 ## How to work
 
@@ -31,23 +30,42 @@ is the only thing that does.
   visible to you, and they are the specification's operational half.
 - Implement the public API in the entry point. It must export exactly what
   contract.d.ts declares — no more, no less.
-- Decompose when a problem is bigger than one file. Declare a module, state
-  what it is for, and give it its own tests. A module is a directory of flat
-  files; there are no subdirectories inside one.
-- Write module tests as you go and run them. They are your instrument for
-  finding your own mistakes cheaply, before the acceptance suite does.
+- Decompose when a problem is bigger than one file. Work module by module: for
+  each, declare it and say what it is for, write its tests and watch them
+  fail, then implement until they pass. Move to the next only when the current
+  one is green. Your module tests are scaffolding — they help you build; they
+  do not decide whether the job is done. The acceptance suite does.
 - Prefer editing to rewriting. An edit costs a few tokens; rewriting a file
   costs the whole file.
-- Run the acceptance tests and the typecheck yourself whenever you want to
-  know where you stand. They cost nothing but time.
+- Re-read the spec when a test disagrees with you. The contract fixes the shape
+  of the public API; the spec fixes its meaning.
+
+## Where you stand
+
+After every change you make, the harness runs the typecheck, the acceptance
+suite and the touched module's tests, and appends the result to the tool's
+reply as a short status:
+
+    ---
+    typecheck: ok
+    arith tests: 3/4 passing
+    acceptance: 12/82 passing
+
+This is information, not an instruction. A workspace in the middle of a change
+is expected to be red. When you want the detail behind a line — every failure,
+every diagnostic — call run_acceptance_tests, run_module_tests or typecheck.
 
 ## The workspace
 
-- Imports between your own files are ESM and must carry a \`.js\` extension,
-  even though you write \`.ts\`: \`import { scan } from "./scanner.js";\`.
+- A module is a flat directory of files with its own tests. Its public surface
+  is its index.ts. Import a module from anywhere — the entry point or another
+  module — by name: \`import { scan } from "#tokenizer";\`. The harness keeps
+  that name resolving; you never write a path to a module.
+- Files inside one module import each other as siblings, with a \`.js\`
+  extension even though you write \`.ts\`: \`import { x } from "./scanner.js";\`.
 - The package under construction has no dependencies. Node's built-in modules
   are available; nothing from npm is.
-- You address files by name, never by path. Tools accept \`x\`, \`x.ts\` or
+- Tools address files by name, never by path. They accept \`x\`, \`x.ts\` or
   \`x.js\` for an implementation file and \`x\`, \`x.ts\` or \`x.test.ts\` for a
   test file.
 

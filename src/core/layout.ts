@@ -101,6 +101,20 @@ export function moduleDir(module: string): string {
   return `${MODULES_DIR}/${module}`;
 }
 
+/**
+ * How a module is imported from anywhere in the package: a Node subpath import,
+ * mapped in package.json by the harness. Location-independent, so the agent
+ * never computes a relative path across a module boundary.
+ */
+export function moduleImportSpecifier(module: string): string {
+  return `#${module}`;
+}
+
+/** The workspace-side mapping for one module's specifier. */
+export function moduleImportTarget(module: string): string {
+  return `./${moduleDir(module)}/index.ts`;
+}
+
 export function moduleFilePath(module: string, file: string): string {
   return `${moduleDir(module)}/${file}`;
 }
