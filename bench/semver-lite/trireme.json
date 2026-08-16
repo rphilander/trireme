@@ -1,0 +1,15 @@
+{
+  "name": "semver-lite",
+  "version": "0.1.0",
+  "description": "Parse, compare and sort semantic versions, and test them against a small range subset.",
+  "model": "openrouter/anthropic/claude-sonnet-5",
+  "thinking": "medium",
+  "limits": {
+    "costUsd": 1.5,
+    "wallClockMinutes": 20
+  },
+  "safety": {
+    "maxIterations": 40
+  },
+  "dependencies": {}
+}
