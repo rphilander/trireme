@@ -77,7 +77,7 @@ The gate is three checks, run by trireme and not by the agent, in this order, st
 
 ### Limits and the ledger
 
-Cost and wall clock are budgets. Both are checked after every assistant message, so an overrun is bounded by one message. Wall clock starts when `run` is called and includes scaffolding; time spent waiting on provider backoff counts against it and is also recorded separately.
+Cost and wall clock are budgets. Both are checked after every assistant message, so a cost overrun is bounded by one message. Wall clock is additionally a hard limit: a timer aborts the session the moment the budget is spent, so a single long generation cannot carry the run past its cap. Wall clock starts when `run` is called and includes scaffolding; time spent waiting on provider backoff counts against it and is also recorded separately.
 
 The ledger accumulates the token counts and costs that the agent session reports for each message. Cost is recorded in dollars when the provider has published per-token prices and as *unpriced* when it has not — a flat-rate provider reports zero, which must not be mistaken for a free run. When cost is unpriced, a cost cap cannot be enforced, and the run reports that rather than proceeding as though the cap were infinite.
 

@@ -26,6 +26,8 @@ export interface ScriptedTurn {
   usage?: Partial<TurnUsage>;
   /** Emit a provider error instead of a response, as an outage would. */
   fail?: string;
+  /** Real milliseconds to wait before answering, as a slow generation would. */
+  delayMs?: number;
 }
 
 export interface TurnUsage {
@@ -90,7 +92,7 @@ export function scriptedProvider(options: ScriptOptions): ScriptedProvider {
     maxTokens: 32_000,
   };
 
-  function streamSimple() {
+  function streamSimple(_model?: unknown, _context?: unknown, streamOptions?: { signal?: AbortSignal }) {
     const request = requests;
     requests += 1;
     const turn = options.respond(request) ?? { text: "" };
@@ -106,9 +108,34 @@ export function scriptedProvider(options: ScriptOptions): ScriptedProvider {
     };
 
     const stream = createAssistantMessageEventStream();
-    queueMicrotask(() => {
-      const push = (event: unknown) => stream.push(event as never);
+    const push = (event: unknown) => stream.push(event as never);
 
+    // A real provider's HTTP stream is cancelled the moment the session
+    // aborts. A delayed scripted turn must do the same, or a hard wall-clock
+    // cap could not be exercised without a network.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const signal = streamOptions?.signal;
+    const onAbort = () => {
+      if (timer === undefined) return;
+      clearTimeout(timer);
+      timer = undefined;
+      const message = { ...base, content: [], stopReason: "aborted", errorMessage: "Request aborted" };
+      push({ type: "start", partial: message });
+      push({ type: "error", reason: "aborted", error: message });
+    };
+    const later = (fn: () => void) => {
+      if (!turn.delayMs) {
+        queueMicrotask(fn);
+        return;
+      }
+      timer = setTimeout(() => {
+        timer = undefined;
+        signal?.removeEventListener("abort", onAbort);
+        fn();
+      }, turn.delayMs);
+      signal?.addEventListener("abort", onAbort, { once: true });
+    };
+    later(() => {
       if (turn.fail !== undefined) {
         const message = { ...base, content: [], stopReason: "error", errorMessage: turn.fail };
         push({ type: "start", partial: message });

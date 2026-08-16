@@ -202,6 +202,7 @@ export async function runJob(options: RunOptions): Promise<RunResult> {
   let mutated = false;
   let infraError: string | undefined;
   let budgetTripped = false;
+  let wallClockTimer: NodeJS.Timeout | undefined;
 
   try {
     const session = await createHarnessSession({
@@ -236,16 +237,45 @@ export async function runJob(options: RunOptions): Promise<RunResult> {
 
     ledger = new RunLedger({ priced: session.priced });
 
+    const wallClockCapMs = manifest.limits.wallClockMinutes * 60_000;
+
     const policyState = (idleIterations: number): PolicyState => ({
       priced: ledger.priced,
       costUsd: ledger.costUsd,
       costCapUsd: manifest.limits.costUsd,
       elapsedMs: elapsed(),
-      wallClockCapMs: manifest.limits.wallClockMinutes * 60_000,
+      wallClockCapMs,
       iterations,
       maxIterations: manifest.safety.maxIterations,
       idleIterations,
     });
+
+    // The wall clock is a hard cap. Checking only at message boundaries would
+    // let a single long generation overrun it by minutes, so a timer aborts the
+    // session the moment the budget is spent. It defers to the injected clock:
+    // if that says time has not actually elapsed, it re-arms and the
+    // message-boundary check remains the mechanism.
+    const armWallClock = (): void => {
+      const remaining = wallClockCapMs - elapsed();
+      wallClockTimer = setTimeout(() => {
+        wallClockTimer = undefined;
+        if (elapsed() < wallClockCapMs) {
+          armWallClock();
+          return;
+        }
+        if (budgetTripped) return;
+        budgetTripped = true;
+        log.write({
+          type: "limit",
+          outcome: "failed:wall_clock",
+          reason: `Wall clock reached the cap: ${(elapsed() / 60_000).toFixed(1)} min of ${manifest.limits.wallClockMinutes} min.`,
+          source: "timer",
+        });
+        void session.session.abort().catch(() => {});
+      }, Math.max(0, remaining));
+      wallClockTimer.unref();
+    };
+    armWallClock();
 
     session.session.subscribe((event) => {
       switch (event.type) {
@@ -415,6 +445,8 @@ export async function runJob(options: RunOptions): Promise<RunResult> {
         ? error.message
         : `The run could not be carried out: ${error instanceof Error ? error.message : String(error)}`;
     log.write({ type: "run_end", outcome, reason });
+  } finally {
+    if (wallClockTimer) clearTimeout(wallClockTimer);
   }
 
   const result: RunResult = {

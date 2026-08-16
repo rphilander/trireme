@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { exitCodeFor, run } from "trireme";
 import { fakeClock, makeJob, type TempJob } from "./support/job.ts";
 import { buildsCorrectly, churnsForever, neverActs } from "./support/agents.ts";
+import { scriptedProvider } from "./support/scripted-provider.ts";
 
 let job: TempJob | undefined;
 afterEach(() => {
@@ -70,6 +71,31 @@ describe("budgets end a run that will not converge", () => {
 
     expect(result.outcome).toBe("failed:wall_clock");
     expect(result.ledger.wallClockMs).toBeGreaterThanOrEqual(2 * 60_000);
+  });
+
+  it("enforces the wall-clock cap as a hard limit, cutting off a generation that outlasts it", async () => {
+    // A single model turn can take minutes. Checking only between messages
+    // would let it overrun the cap by that much; the run must end at the cap.
+    job = makeJob({
+      manifest: {
+        limits: { costUsd: 1000, wallClockMinutes: 1 / 60 },
+        safety: { maxIterations: 500 },
+      },
+    });
+    const agent = scriptedProvider({
+      respond: () => ({ text: "Still thinking...", delayMs: 5_000 }),
+    });
+    const before = Date.now();
+    const result = await run({
+      jobDir: job.dir,
+      runsDir: job.runsDir,
+      extensions: [agent.extension],
+      overrides: { model: agent.modelRef },
+    });
+
+    expect(result.outcome).toBe("failed:wall_clock");
+    expect(Date.now() - before).toBeLessThan(4_500);
+    expect(result.ledger.wallClockMs).toBeGreaterThanOrEqual(1_000);
   });
 
   it("stops at the iteration cap when nothing else binds first", async () => {
