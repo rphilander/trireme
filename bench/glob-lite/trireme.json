@@ -1,0 +1,15 @@
+{
+  "name": "glob-lite",
+  "version": "0.1.0",
+  "description": "Bash pattern matching (wildcards, bracket expressions, extglob) and brace expansion, as pure functions.",
+  "model": "openrouter/anthropic/claude-sonnet-5",
+  "thinking": "medium",
+  "limits": {
+    "costUsd": 3,
+    "wallClockMinutes": 30
+  },
+  "safety": {
+    "maxIterations": 40
+  },
+  "dependencies": {}
+}
