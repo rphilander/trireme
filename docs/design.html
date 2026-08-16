@@ -390,12 +390,8 @@
 
   <span class="key">"dependencies"</span>: {}                  <span class="cmt">v1: empty. See “Dependencies”.</span>
 }</code></pre>
-      <p>Every <code>limits</code> and <code>safety</code> field, and both model fields, can be overridden per run from the CLI — a manifest is a set of defaults, not a cage. What is <em>not</em> configurable is where anything lives.</p>
+      <p>Every <code>limits</code> and <code>safety</code> field, and both model fields, can be overridden per run from the CLI — a manifest is a set of defaults, not a cage. Layout is fixed: a job’s tree hashes to a stable identity, and validation can name a missing file exactly.</p>
 
-      <div class="call">
-        <span class="call-label">Layout is fixed, deliberately</span>
-        <p>Configurable paths exist so a tool can fit into a codebase it did not create. Trireme defines this format outright, so there is nothing to accommodate and the flexibility would only cost. A fixed layout means a job is verifiable by inspection, its tree hashes to a stable identity for benchmark provenance, and nothing in it can point outside itself. It also sharpens validation from “spec path not found” to “missing <code>spec.md</code>”. Since jobs are generated from a template and then reviewed rather than hand-assembled, every degree of freedom is one more way for a generator to be quietly wrong.</p>
-      </div>
 
       <div class="call">
         <span class="call-label">Why two blocks</span>
@@ -531,8 +527,8 @@ its meaning.</code></pre>
       <p>The same expectation is repeated in the tool descriptions, so the method travels with the tools. Stated calmly and once — an over-emphatic prompt reliably makes current models worse, not more compliant.</p>
 
       <div class="call">
-        <span class="call-label">Deliberate omission</span>
-        <p>There is no <code>done</code> tool. The agent cannot declare victory; the harness runs the gate. This is the single most important property of the loop, and it's cheapest to get right by never building the affordance.</p>
+        <span class="call-label">The harness decides done</span>
+        <p>Completion is measured, never asserted. The gate runs on the harness's side of the loop and the agent has no way to declare itself finished — which is the single most important property of the design.</p>
       </div>
     </div>
   </section>
