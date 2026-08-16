@@ -450,18 +450,34 @@ const _implAddsNothing: typeof Impl = asContract;</code></pre>
         <div class="step"><span class="step-n">07</span><span class="step-b"><b>Report</b> — outcome class, ledger, artifacts. Written on every path, including failure and abort.</span></div>
       </div>
 
-      <h3>Workspace — what the agent sees</h3>
+      <h3>What the agent works on</h3>
+      <p>Five kinds of thing, each addressed by name. This is the whole of the agent's world; there is no tree in it.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Thing</th><th>Addressed by</th><th>Access</th></tr></thead>
+          <tbody>
+            <tr><td>The spec</td><td>nothing — there is one</td><td>read</td></tr>
+            <tr><td>The contract</td><td>nothing — there is one</td><td>read</td></tr>
+            <tr><td>Acceptance tests</td><td>a file name</td><td>read</td></tr>
+            <tr><td>The entry point</td><td>nothing — there is one</td><td>read · write</td></tr>
+            <tr><td>Modules</td><td>a module name, and a file name within it</td><td>read · write · delete</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Read-only is structural rather than policed: no tool writes to the first three, so there is nothing to enforce.</p>
+
+      <h3>Physical layout — the harness's business</h3>
+      <p>Where all of that lands on disk is a mapping the harness owns and no tool exposes. It matters to us, not to the agent.</p>
       <pre><code>workspace/
   package.json            <span class="cmt">generated · locked</span>
   tsconfig.json           <span class="cmt">generated · locked</span>
   vitest.config.ts        <span class="cmt">generated · locked</span>
   .trireme/conformance.ts <span class="cmt">generated · locked</span>
-  contract.d.ts           <span class="cmt">from job   · read-only</span>
-  acceptance/*.test.ts    <span class="cmt">from job   · read-only</span>
+  contract.d.ts           <span class="cmt">from job</span>
+  acceptance/*.test.ts    <span class="cmt">from job</span>
   src/
-    index.ts              <span class="cmt">agent — the public entry point</span>
-    modules/&lt;name&gt;/       <span class="cmt">agent — implementation + its own tests</span></code></pre>
-      <p>Read-only is structural, not policed: no tool takes a path, and no target addresses the locked or job-owned files for writing.</p>
+    index.ts              <span class="cmt">the entry point</span>
+    modules/&lt;name&gt;/       <span class="cmt">one directory per declared module</span></code></pre>
 
       <h3>Run directory — what you get afterwards</h3>
       <pre><code>runs/&lt;utc-timestamp&gt;-&lt;hash&gt;/
@@ -478,39 +494,62 @@ const _implAddsNothing: typeof Impl = asContract;</code></pre>
   <section>
     <div class="eyebrow">Agent interface</div>
     <div class="body">
-      <h2>Eight typed tools</h2>
-      <p>No path is ever a string the agent composes. Every tool addresses a <em>target</em>, and the harness maps targets to paths — which is what makes the invariants hold by construction and gives the harness a live model of the build rather than a directory listing.</p>
+      <h2>Seventeen named tools</h2>
+      <p>The agent has no filesystem and never composes a path. It addresses things by name — and each tool does one thing to one kind of thing, so its description can say precisely when to use it and a malformed call is largely not expressible. <code>read_spec()</code> takes no arguments at all; there is no <code>write_spec</code> to reject.</p>
 
+      <h3>The job — read only</h3>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Tool</th><th>Shape</th><th>Notes</th></tr></thead>
+          <thead><tr><th>Tool</th><th>Returns</th></tr></thead>
           <tbody>
-            <tr><td><code>read</code></td><td><code>{ target }</code></td><td>Any target, including the read-only ones. Returns numbered lines.</td></tr>
-            <tr><td><code>list_modules</code></td><td><code>{}</code></td><td>The build graph: each module's purpose, files, whether it has tests, last test status.</td></tr>
-            <tr><td><code>declare_module</code></td><td><code>{ name, purpose }</code></td><td>Creates the directory and registers the module. Purpose is recorded for the report.</td></tr>
-            <tr><td><code>write</code></td><td><code>{ target, content }</code></td><td>Writable targets only.</td></tr>
-            <tr><td><code>edit</code></td><td><code>{ target, find, replace, replaceAll? }</code></td><td>The primary mutation. Output tokens are the expensive ones; whole-file rewrites are the thing to avoid.</td></tr>
-            <tr><td><code>remove</code></td><td><code>{ target }</code></td><td>Restructuring is real; deletion shouldn't require a workaround.</td></tr>
-            <tr><td><code>run_tests</code></td><td><code>{ scope }</code></td><td><code>acceptance</code> · <code>module &lt;name&gt;</code> · <code>all</code>. Structured results, not stdout.</td></tr>
-            <tr><td><code>typecheck</code></td><td><code>{}</code></td><td><code>tsc</code> over source, acceptance, and the conformance module. Structured diagnostics.</td></tr>
+            <tr><td><code>read_spec()</code></td><td>The specification.</td></tr>
+            <tr><td><code>read_contract()</code></td><td>The declarations that fix the public API.</td></tr>
+            <tr><td><code>list_acceptance_tests()</code></td><td>The names of the acceptance test files.</td></tr>
+            <tr><td><code>read_acceptance_test({ file })</code></td><td>One acceptance test file.</td></tr>
           </tbody>
         </table>
       </div>
 
-      <h3>Targets</h3>
+      <h3>The entry point</h3>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Target</th><th>Resolves to</th><th>Access</th></tr></thead>
+          <thead><tr><th>Tool</th><th>Does</th></tr></thead>
           <tbody>
-            <tr><td><code>{ kind: "spec" }</code></td><td><code>spec.md</code></td><td>read</td></tr>
-            <tr><td><code>{ kind: "contract" }</code></td><td><code>contract.d.ts</code></td><td>read</td></tr>
-            <tr><td><code>{ kind: "acceptance", file? }</code></td><td><code>acceptance/…</code></td><td>read</td></tr>
-            <tr><td><code>{ kind: "entry" }</code></td><td><code>src/index.ts</code></td><td>read · write</td></tr>
-            <tr><td><code>{ kind: "module", name, file? }</code></td><td><code>src/modules/&lt;name&gt;/&lt;file⎮index.ts&gt;</code></td><td>read · write</td></tr>
+            <tr><td><code>read_entry()</code></td><td>Reads the package's public entry point.</td></tr>
+            <tr><td><code>write_entry({ content })</code></td><td>Replaces it.</td></tr>
+            <tr><td><code>edit_entry({ find, replace, replaceAll? })</code></td><td>Edits it in place.</td></tr>
           </tbody>
         </table>
       </div>
-      <p>A module is a directory, not a file — internal structure is the agent's to choose. Its tests are simply files matching <code>*.test.ts</code> inside it, which is what <code>run_tests</code> scopes to.</p>
+
+      <h3>Modules</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tool</th><th>Does</th></tr></thead>
+          <tbody>
+            <tr><td><code>list_modules()</code></td><td>Every module: purpose, files, whether it has tests, last test status.</td></tr>
+            <tr><td><code>declare_module({ name, purpose })</code></td><td>Registers a module. The purpose is recorded and shown in the report.</td></tr>
+            <tr><td><code>read_module_file({ module, file })</code></td><td>Reads one file in a module.</td></tr>
+            <tr><td><code>write_module_file({ module, file, content })</code></td><td>Creates or replaces it.</td></tr>
+            <tr><td><code>edit_module_file({ module, file, find, replace, replaceAll? })</code></td><td>Edits it in place. The primary mutation — output tokens are the expensive ones, so whole-file rewrites are the thing to avoid.</td></tr>
+            <tr><td><code>delete_module_file({ module, file })</code></td><td>Removes it.</td></tr>
+            <tr><td><code>delete_module({ module })</code></td><td>Removes the module and everything in it.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Verification</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tool</th><th>Returns</th></tr></thead>
+          <tbody>
+            <tr><td><code>run_acceptance_tests()</code></td><td>Structured results — counts, and each failure with its message and location. Not stdout.</td></tr>
+            <tr><td><code>run_module_tests({ module })</code></td><td>The same, for one module's own tests.</td></tr>
+            <tr><td><code>typecheck()</code></td><td>Structured diagnostics across the implementation, the acceptance suite and the conformance check.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>A module is a named group of files with a stated purpose, not a single file — its internal structure is the agent's to choose. Files matching <code>*.test.ts</code> inside it are its tests, and are what <code>run_module_tests</code> runs.</p>
 
       <h3>Method, stated in the system prompt</h3>
       <pre><code>Work module by module. For each: declare it, write its exported types
@@ -588,7 +627,7 @@ its meaning.</code></pre>
             <tr><td><code>manifest</code></td><td>Parse, validate, merge CLI overrides → resolved config.</td></tr>
             <tr><td><code>spec</code></td><td>Validate required sections; extract them.</td></tr>
             <tr><td><code>scaffold</code></td><td>Config → a file map. Writing it is someone else's job.</td></tr>
-            <tr><td><code>targets</code></td><td>Target → path, and the access rules. The write-protection lives here.</td></tr>
+            <tr><td><code>layout</code></td><td>Names → paths, and the access rules. Write-protection lives here.</td></tr>
             <tr><td><code>graph</code></td><td>Module registry and status; what <code>list_modules</code> returns.</td></tr>
             <tr><td><code>ledger</code></td><td>Usage events + price table → dollars.</td></tr>
             <tr><td><code>results</code></td><td>vitest and tsc output → structured results, and the failure text the agent reads.</td></tr>
