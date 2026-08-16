@@ -18,8 +18,27 @@ import type { AgentSession, InlineExtension, ToolDefinition } from "@earendil-wo
 import path from "node:path";
 import type { ThinkingLevel } from "../core/types.ts";
 
-/** A run is unattended, so a transient provider failure is retried before it is fatal. */
-const RETRY = { enabled: true, maxRetries: 3, baseDelayMs: 1000 };
+/**
+ * A run is unattended, so a transient provider failure is retried before it is
+ * fatal. Two layers, deliberately:
+ *
+ * - `provider`: pi-ai retries the HTTP request itself on 408/409/429/5xx,
+ *   honouring Retry-After, on a 0.5→1→2→4→8→8s schedule. Six attempts is
+ *   ~25s of patience per request. This is off by default and is where a
+ *   rate-limit window is outlasted. It happens below the session, so it is
+ *   invisible to a scripted provider and to `stalledMs`; only wall clock sees it.
+ * - session: when an error still surfaces as an assistant message, the session
+ *   retries three times at 1→2→4s and reports each as `auto_retry_start`, which
+ *   the ledger records as stalled time.
+ *
+ * Together: roughly half a minute before a real outage is reported as one.
+ */
+const RETRY = {
+  enabled: true,
+  maxRetries: 3,
+  baseDelayMs: 1000,
+  provider: { maxRetries: 6, maxRetryDelayMs: 60_000 },
+};
 
 export class InfrastructureError extends Error {}
 

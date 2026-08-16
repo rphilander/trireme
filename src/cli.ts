@@ -5,6 +5,8 @@
  * A thin wrapper: it parses arguments, calls the library, prints where the run
  * left its artifacts, and exits with the outcome's code. It adds no behaviour.
  */
+import fs from "node:fs";
+import path from "node:path";
 import { exitCodeFor, run } from "./index.ts";
 import type { Overrides, RunOptions, ThinkingLevel } from "./core/types.ts";
 
@@ -79,6 +81,30 @@ export function parse(argv: string[]): { jobDir: string; options: RunOptions } {
   return { jobDir, options };
 }
 
+/**
+ * Announces the run directory as soon as it appears, so a long run can be
+ * followed with `tail -f <run>/events.jsonl` while it is still going. The
+ * library does not report this itself — the CLI knows the runs directory it
+ * asked for, and watching it is presentation, not behaviour.
+ */
+function announceRunDir(runsDir: string, before: Set<string>, done: Promise<unknown>): void {
+  let settled = false;
+  void done.finally(() => {
+    settled = true;
+  });
+  const poll = () => {
+    if (settled) return;
+    const fresh = fs.existsSync(runsDir) ? fs.readdirSync(runsDir).filter((e) => !before.has(e)) : [];
+    if (fresh.length > 0) {
+      const runDir = path.join(runsDir, fresh.sort()[fresh.length - 1]!);
+      process.stderr.write(`run: ${runDir}\nfollow with: tail -f ${path.join(runDir, "events.jsonl")}\n`);
+      return;
+    }
+    setTimeout(poll, 250).unref();
+  };
+  poll();
+}
+
 export async function main(argv: string[]): Promise<number> {
   let parsed: ReturnType<typeof parse>;
   try {
@@ -88,7 +114,14 @@ export async function main(argv: string[]): Promise<number> {
     return exitCodeFor("error:usage");
   }
 
-  const result = await run(parsed.options);
+  // Snapshot before calling run(): it creates the run directory synchronously,
+  // ahead of its first await, so a snapshot taken afterwards would already
+  // contain the entry we are waiting to see.
+  const runsDir = path.resolve(parsed.options.runsDir ?? path.join(process.cwd(), "runs"));
+  const before = new Set(fs.existsSync(runsDir) ? fs.readdirSync(runsDir) : []);
+  const pending = run(parsed.options);
+  announceRunDir(runsDir, before, pending);
+  const result = await pending;
 
   process.stdout.write(`${result.outcome}\n`);
   if (result.reason) process.stdout.write(`${result.reason}\n`);
