@@ -57,9 +57,12 @@ function strip(node: unknown): unknown {
   if (Array.isArray(node)) return node.map(strip);
   if (node instanceof RegExp) return { pattern: node.source, flags: node.flags };
   if (node && typeof node === "object") {
+    // Keys sorted so the comparison is structural, not order-of-insertion.
     const out: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(node)) {
+    for (const key of Object.keys(node).sort()) {
       if (key === "start" || key === "end") continue;
+      const value = (node as Record<string, unknown>)[key];
+      if (value === undefined) continue;
       out[key] = strip(value);
     }
     return out;
