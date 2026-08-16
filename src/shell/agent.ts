@@ -56,6 +56,8 @@ export interface HarnessSession {
   /** Whether the provider publishes per-token prices. */
   priced: boolean;
   modelRef: string;
+  /** The resolved model's limits, as the runtime will enforce them. */
+  limits: { maxTokens: number; contextWindow: number; reasoning: boolean };
 }
 
 /** `provider/model-id`, where the model id may itself contain slashes. */
@@ -141,5 +143,15 @@ export async function createHarnessSession(options: SessionOptions): Promise<Har
     );
   }
 
-  return { session, priced: isPriced(model), modelRef: options.model };
+  const resolved = model as { maxTokens?: number; contextWindow?: number; reasoning?: boolean };
+  return {
+    session,
+    priced: isPriced(model),
+    modelRef: options.model,
+    limits: {
+      maxTokens: resolved.maxTokens ?? 0,
+      contextWindow: resolved.contextWindow ?? 0,
+      reasoning: resolved.reasoning === true,
+    },
+  };
 }

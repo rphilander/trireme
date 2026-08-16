@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { exitCodeFor, run } from "trireme";
-import { fakeClock, makeJob, type TempJob } from "./support/job.ts";
+import path from "node:path";
+import { fakeClock, makeJob, readIfPresent, type TempJob } from "./support/job.ts";
 import { buildsCorrectly, churnsForever, neverActs } from "./support/agents.ts";
 import { scriptedProvider } from "./support/scripted-provider.ts";
 
@@ -134,6 +135,34 @@ describe("budgets end a run that will not converge", () => {
 
     expect(result.outcome).toBe("failed:no_progress");
     expect(result.ledger.iterations).toBe(3);
+  });
+});
+
+describe("a model that runs out of output room is reported as such", () => {
+  // A reasoning model with too small an output ceiling thinks, is cut off, and
+  // never reaches a tool call. That is still no progress — but a run must not
+  // read as a lazy model when the limit is what stopped it.
+  it("names the truncation and the limit in the reason, and logs each occurrence", async () => {
+    job = makeJob({ manifest: { safety: { maxIterations: 10 } } });
+    const agent = scriptedProvider({ respond: () => ({ truncated: true }) });
+    const result = await run({
+      jobDir: job.dir,
+      runsDir: job.runsDir,
+      extensions: [agent.extension],
+      overrides: { model: agent.modelRef },
+    });
+
+    expect(result.outcome).toBe("failed:no_progress");
+    expect(result.reason).toContain("output limit");
+    expect(result.reason).toContain("maxTokens=32000");
+
+    const events = (readIfPresent(path.join(result.runDir, "events.jsonl")) ?? "")
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line) as { type: string; maxTokens?: number });
+    expect(events.filter((e) => e.type === "output_limit")).toHaveLength(3);
+    const resolved = events.find((e) => e.type === "model_resolved");
+    expect(resolved?.maxTokens).toBe(32000);
   });
 });
 

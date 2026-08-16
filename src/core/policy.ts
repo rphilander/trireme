@@ -19,6 +19,12 @@ export interface PolicyState {
   maxIterations: number;
   /** Consecutive iterations that ended with no mutating tool call. */
   idleIterations: number;
+  /**
+   * Assistant messages the provider cut off at the model's output limit. A
+   * reasoning model with too small a ceiling never reaches a tool call, and a
+   * run that stalls for that reason must say so rather than read as idle.
+   */
+  truncated?: { messages: number; maxTokens: number };
 }
 
 export type Verdict = { stop: false } | { stop: true; outcome: Outcome; reason: string };
@@ -47,6 +53,16 @@ export function evaluateBudgets(state: PolicyState): Verdict {
   return CONTINUE;
 }
 
+function truncationNote(state: PolicyState): string {
+  const t = state.truncated;
+  if (!t || t.messages === 0) return "";
+  const noun = t.messages === 1 ? "message was" : "messages were";
+  return (
+    ` ${t.messages} assistant ${noun} cut off at the model's output limit` +
+    ` (maxTokens=${t.maxTokens}) before finishing; the model may need more room to reason.`
+  );
+}
+
 /** Everything, consulted once per iteration once the gate has failed. */
 export function evaluateIteration(state: PolicyState): Verdict {
   const budget = evaluateBudgets(state);
@@ -56,14 +72,18 @@ export function evaluateIteration(state: PolicyState): Verdict {
     return {
       stop: true,
       outcome: "failed:no_progress",
-      reason: `${state.idleIterations} consecutive iterations changed nothing while the gate was still failing.`,
+      reason:
+        `${state.idleIterations} consecutive iterations changed nothing while the gate was still failing.` +
+        truncationNote(state),
     };
   }
   if (state.iterations >= state.maxIterations) {
     return {
       stop: true,
       outcome: "failed:iteration_cap",
-      reason: `Reached the iteration backstop after ${state.iterations} iterations without converging.`,
+      reason:
+        `Reached the iteration backstop after ${state.iterations} iterations without converging.` +
+        truncationNote(state),
     };
   }
   return CONTINUE;

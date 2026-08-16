@@ -83,7 +83,7 @@ The ledger accumulates the token counts and costs that the agent session reports
 
 `safety.maxIterations` is not a budget. It is a backstop against a loop that turns without converging and without spending, and tripping it yields `failed:iteration_cap`.
 
-A run makes no progress when three consecutive iterations end with no mutating tool call while the gate is still failing. That yields `failed:no_progress`.
+A run makes no progress when three consecutive iterations end with no mutating tool call while the gate is still failing. That yields `failed:no_progress`. When assistant messages were cut off at the model's output-token limit — a reasoning model that never reaches a tool call — the failure's reason says how many and at what limit, so the run does not read as an idle model. The resolved model's limits are recorded in the event log at the start of every run.
 
 ### Infrastructure failures
 

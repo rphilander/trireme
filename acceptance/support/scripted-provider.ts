@@ -28,6 +28,12 @@ export interface ScriptedTurn {
   fail?: string;
   /** Real milliseconds to wait before answering, as a slow generation would. */
   delayMs?: number;
+  /**
+   * End the message at the model's output limit, as a provider does when a
+   * reasoning model runs out of room before reaching a tool call. The message
+   * carries `text` (if any) and stops with `length`.
+   */
+  truncated?: boolean;
 }
 
 export interface TurnUsage {
@@ -140,6 +146,15 @@ export function scriptedProvider(options: ScriptOptions): ScriptedProvider {
         const message = { ...base, content: [], stopReason: "error", errorMessage: turn.fail };
         push({ type: "start", partial: message });
         push({ type: "error", reason: "error", error: message });
+        return;
+      }
+
+      if (turn.truncated) {
+        const text = turn.text ?? "";
+        const message = { ...base, content: text ? [{ type: "text", text }] : [], stopReason: "length" };
+        push({ type: "start", partial: message });
+        if (text) push({ type: "text_end", contentIndex: 0, content: text, partial: message });
+        push({ type: "done", reason: "length", message });
         return;
       }
 

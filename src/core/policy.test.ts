@@ -96,6 +96,41 @@ describe("pathology detectors", () => {
   });
 });
 
+describe("messages cut off at the model's output limit", () => {
+  // A reasoning model with too small an output ceiling thinks, gets truncated,
+  // and never reaches a tool call. The outcome is still no progress — nothing
+  // changed — but the reason must say why, or the run reads as a lazy model.
+  const truncated = { messages: 3, maxTokens: 4096 };
+
+  it("are named in a no-progress verdict, with the limit that cut them off", () => {
+    const verdict = evaluateIteration(state({ idleIterations: NO_PROGRESS_ITERATIONS, truncated }));
+    expect(verdict).toMatchObject({ outcome: "failed:no_progress" });
+    if (verdict.stop) {
+      expect(verdict.reason).toContain("3");
+      expect(verdict.reason).toContain("output limit");
+      expect(verdict.reason).toContain("4096");
+    }
+  });
+
+  it("are named in an iteration-cap verdict too", () => {
+    const verdict = evaluateIteration(state({ iterations: 10, maxIterations: 10, truncated }));
+    expect(verdict).toMatchObject({ outcome: "failed:iteration_cap" });
+    if (verdict.stop) expect(verdict.reason).toContain("output limit");
+  });
+
+  it("do not change the outcome", () => {
+    expect(evaluateIteration(state({ truncated }))).toEqual({ stop: false });
+    expect(evaluateIteration(state({ costUsd: 5, truncated }))).toMatchObject({ outcome: "failed:cost_cap" });
+  });
+
+  it("are not mentioned when none happened", () => {
+    const verdict = evaluateIteration(
+      state({ idleIterations: NO_PROGRESS_ITERATIONS, truncated: { messages: 0, maxTokens: 4096 } }),
+    );
+    if (verdict.stop) expect(verdict.reason).not.toContain("output limit");
+  });
+});
+
 describe("when more than one limit is spent", () => {
   it("reports the budget before the pathology, because it explains the run", () => {
     const verdict = evaluateIteration(

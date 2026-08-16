@@ -201,6 +201,8 @@ export async function runJob(options: RunOptions): Promise<RunResult> {
   let ledger = new RunLedger({ priced: true });
   let mutated = false;
   let infraError: string | undefined;
+  /** Assistant messages cut off by the model's output limit before finishing. */
+  let truncated = 0;
   let budgetTripped = false;
   let wallClockTimer: NodeJS.Timeout | undefined;
 
@@ -236,6 +238,7 @@ export async function runJob(options: RunOptions): Promise<RunResult> {
     });
 
     ledger = new RunLedger({ priced: session.priced });
+    log.write({ type: "model_resolved", model: session.modelRef, priced: session.priced, ...session.limits });
 
     const wallClockCapMs = manifest.limits.wallClockMinutes * 60_000;
 
@@ -248,6 +251,7 @@ export async function runJob(options: RunOptions): Promise<RunResult> {
       iterations,
       maxIterations: manifest.safety.maxIterations,
       idleIterations,
+      truncated: { messages: truncated, maxTokens: session.limits.maxTokens },
     });
 
     // The wall clock is a hard cap. Checking only at message boundaries would
@@ -288,6 +292,13 @@ export async function runJob(options: RunOptions): Promise<RunResult> {
           };
           if (message.role !== "assistant") return;
           ledger.add(message.usage);
+          // A message the provider cut off at max output tokens is a distinct
+          // pathology — usually reasoning that never reached a tool call — and
+          // a run that fails to progress because of it should say so.
+          if (message.stopReason === "length") {
+            truncated += 1;
+            log.write({ type: "output_limit", maxTokens: session.limits.maxTokens, usage: bounded(message.usage) });
+          }
           log.write({
             type: "assistant_message",
             stopReason: message.stopReason,
