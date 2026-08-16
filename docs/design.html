@@ -559,6 +559,13 @@ const _implAddsNothing: typeof Impl = asContract;</code></pre>
       <p>A module is a named group of files with a stated purpose, not a single file — its internal structure is the agent's to choose. Its implementation files and its test suite are addressed separately, so nothing about a file's name determines what it is.</p>
 
       <div class="call">
+        <span class="call-label">Suffixes are accepted, never required</span>
+        <p>The agent cannot stop thinking about file extensions — ESM makes it write <code>./tokenizer.js</code> inside the code it produces — so a rule forbidding them in tool arguments would add a second convention to hold alongside the first, which is how a small formatting rule turns into a repeated silent mistake.</p>
+        <p>So the harness normalizes instead. Read results and <code>list_modules()</code> show real file names, matching what appears in imports and in failure output; the tools accept <code>tokenizer</code> or <code>tokenizer.ts</code> interchangeably, and a test may also be named <code>tokenizer.test.ts</code>. One case is refused rather than normalized, because it is a confusion of two tools rather than of formatting: a <code>.test.ts</code> name passed to <code>write_module_file</code> would silently produce a file the test runner collects, so it is rejected with a message naming <code>write_module_test</code>.</p>
+        <p>The rule generalises to all twenty-one: normalise whatever can be normalised, and where something must be refused, name the tool that was wanted. A rejection reading “invalid” costs a turn; one reading “use <code>write_module_test</code>” costs none.</p>
+      </div>
+
+      <div class="call">
         <span class="call-label">The same shape, one level down</span>
         <p>A package has a contract that fixes its shape, a spec that fixes its meaning, and an acceptance suite that renders the verdict. A module has exactly the same three: its exported types, its declared purpose, and its test suite. The difference is where the obligation lives — a package contract is a separate file because a different party wrote it, and separation is what lets it bind; inside a module the same agent writes both sides, so the test suite is what carries the obligation and a declaration file would be ceremony.</p>
         <p>Which makes promotion literal: purpose becomes a spec, exported types become a contract, the test suite becomes an acceptance suite, and the module is a job.</p>
