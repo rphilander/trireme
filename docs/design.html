@@ -460,7 +460,8 @@ const _implAddsNothing: typeof Impl = asContract;</code></pre>
             <tr><td>The contract</td><td>nothing — there is one</td><td>read</td></tr>
             <tr><td>Acceptance tests</td><td>a file name</td><td>read</td></tr>
             <tr><td>The entry point</td><td>nothing — there is one</td><td>read · write</td></tr>
-            <tr><td>Modules</td><td>a module name, and a file name within it</td><td>read · write · delete</td></tr>
+            <tr><td>Module files</td><td>a module name, and a file name within it</td><td>read · write · delete</td></tr>
+            <tr><td>Module test suites</td><td>a module name, and a file name within it</td><td>read · write · delete</td></tr>
           </tbody>
         </table>
       </div>
@@ -477,7 +478,9 @@ const _implAddsNothing: typeof Impl = asContract;</code></pre>
   acceptance/*.test.ts    <span class="cmt">from job</span>
   src/
     index.ts              <span class="cmt">the entry point</span>
-    modules/&lt;name&gt;/       <span class="cmt">one directory per declared module</span></code></pre>
+    modules/&lt;name&gt;/       <span class="cmt">one directory per declared module</span>
+      *.ts                <span class="cmt">implementation files</span>
+      *.test.ts           <span class="cmt">the module's test suite</span></code></pre>
 
       <h3>Run directory — what you get afterwards</h3>
       <pre><code>runs/&lt;utc-timestamp&gt;-&lt;hash&gt;/
@@ -494,7 +497,7 @@ const _implAddsNothing: typeof Impl = asContract;</code></pre>
   <section>
     <div class="eyebrow">Agent interface</div>
     <div class="body">
-      <h2>Seventeen named tools</h2>
+      <h2>Twenty-one named tools</h2>
       <p>The agent has no filesystem and never composes a path. It addresses things by name — and each tool does one thing to one kind of thing, so its description can say precisely when to use it and a malformed call is largely not expressible. <code>read_spec()</code> takes no arguments at all; there is no <code>write_spec</code> to reject.</p>
 
       <h3>The job — read only</h3>
@@ -527,13 +530,17 @@ const _implAddsNothing: typeof Impl = asContract;</code></pre>
         <table>
           <thead><tr><th>Tool</th><th>Does</th></tr></thead>
           <tbody>
-            <tr><td><code>list_modules()</code></td><td>Every module: purpose, files, whether it has tests, last test status.</td></tr>
+            <tr><td><code>list_modules()</code></td><td>Every module: purpose, implementation files, test suite, last test status.</td></tr>
             <tr><td><code>declare_module({ name, purpose })</code></td><td>Registers a module. The purpose is recorded and shown in the report.</td></tr>
-            <tr><td><code>read_module_file({ module, file })</code></td><td>Reads one file in a module.</td></tr>
+            <tr><td><code>read_module_file({ module, file })</code></td><td>Reads one implementation file.</td></tr>
             <tr><td><code>write_module_file({ module, file, content })</code></td><td>Creates or replaces it.</td></tr>
             <tr><td><code>edit_module_file({ module, file, find, replace, replaceAll? })</code></td><td>Edits it in place. The primary mutation — output tokens are the expensive ones, so whole-file rewrites are the thing to avoid.</td></tr>
             <tr><td><code>delete_module_file({ module, file })</code></td><td>Removes it.</td></tr>
-            <tr><td><code>delete_module({ module })</code></td><td>Removes the module and everything in it.</td></tr>
+            <tr><td><code>read_module_test({ module, file })</code></td><td>Reads one file of the module's test suite.</td></tr>
+            <tr><td><code>write_module_test({ module, file, content })</code></td><td>Creates or replaces it.</td></tr>
+            <tr><td><code>edit_module_test({ module, file, find, replace, replaceAll? })</code></td><td>Edits it in place.</td></tr>
+            <tr><td><code>delete_module_test({ module, file })</code></td><td>Removes it.</td></tr>
+            <tr><td><code>delete_module({ module })</code></td><td>Removes the module, its files and its tests.</td></tr>
           </tbody>
         </table>
       </div>
@@ -544,12 +551,18 @@ const _implAddsNothing: typeof Impl = asContract;</code></pre>
           <thead><tr><th>Tool</th><th>Returns</th></tr></thead>
           <tbody>
             <tr><td><code>run_acceptance_tests()</code></td><td>Structured results — counts, and each failure with its message and location. Not stdout.</td></tr>
-            <tr><td><code>run_module_tests({ module })</code></td><td>The same, for one module's own tests.</td></tr>
+            <tr><td><code>run_module_tests({ module })</code></td><td>The same, for one module's test suite.</td></tr>
             <tr><td><code>typecheck()</code></td><td>Structured diagnostics across the implementation, the acceptance suite and the conformance check.</td></tr>
           </tbody>
         </table>
       </div>
-      <p>A module is a named group of files with a stated purpose, not a single file — its internal structure is the agent's to choose. Files matching <code>*.test.ts</code> inside it are its tests, and are what <code>run_module_tests</code> runs.</p>
+      <p>A module is a named group of files with a stated purpose, not a single file — its internal structure is the agent's to choose. Its implementation files and its test suite are addressed separately, so nothing about a file's name determines what it is.</p>
+
+      <div class="call">
+        <span class="call-label">The same shape, one level down</span>
+        <p>A package has a contract that fixes its shape, a spec that fixes its meaning, and an acceptance suite that renders the verdict. A module has exactly the same three: its exported types, its declared purpose, and its test suite. The difference is where the obligation lives — a package contract is a separate file because a different party wrote it, and separation is what lets it bind; inside a module the same agent writes both sides, so the test suite is what carries the obligation and a declaration file would be ceremony.</p>
+        <p>Which makes promotion literal: purpose becomes a spec, exported types become a contract, the test suite becomes an acceptance suite, and the module is a job.</p>
+      </div>
 
       <h3>Method, stated in the system prompt</h3>
       <pre><code>Work module by module. For each: declare it, write its exported types
