@@ -1,0 +1,13 @@
+{
+  "name": "es5-conformance-generator",
+  "private": true,
+  "type": "module",
+  "description": "Tooling for the es5-conformance job and the Test262 axis: reads a pinned Test262 checkout, emits the acceptance suite (generate.ts), scores artifacts (measure.ts) and grades held-out chapters (holdout.ts). Shared mechanics live in test262.ts. Not part of the job the agent builds.",
+  "scripts": {
+    "test": "vitest run",
+    "generate": "node generate.ts",
+    "check": "node generate.ts --check"
+  },
+  "dependencies": { "acorn": "8.18.0" },
+  "devDependencies": { "vitest": "^4.1.10" }
+}

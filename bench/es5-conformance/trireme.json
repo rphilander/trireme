@@ -1,0 +1,15 @@
+{
+  "name": "es5-conformance",
+  "version": "0.1.0",
+  "description": "An ECMAScript 5 interpreter checked against a Test262 conformance subset (language/expressions arithmetic, comparison, and equality).",
+  "model": "deepseek/deepseek-v4-flash",
+  "thinking": "high",
+  "limits": {
+    "costUsd": 3,
+    "wallClockMinutes": 90
+  },
+  "safety": {
+    "maxIterations": 40
+  },
+  "dependencies": {}
+}
