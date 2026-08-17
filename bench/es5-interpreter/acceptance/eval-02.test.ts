@@ -37,7 +37,7 @@ describe("strict equality", () => {
     ["print(undefined === undefined)", { output: ["true"], error: null }],
     ["print(null === undefined)", { output: ["false"], error: null }],
     ["print(NaN === NaN)", { output: ["false"], error: null }],
-    ["print(0 === \u002d0)", { output: ["true"], error: null }],
+    ["print(0 === -0)", { output: ["true"], error: null }],
     ["print(\"a\" === \"a\")", { output: ["true"], error: null }],
     ["print(true === true)", { output: ["true"], error: null }],
     ["print(true === 1)", { output: ["false"], error: null }],

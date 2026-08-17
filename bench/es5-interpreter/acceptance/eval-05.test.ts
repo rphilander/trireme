@@ -30,8 +30,8 @@ describe("parameters, arguments and return", () => {
     ["function f(a, b){ arguments[0] = 99; return a } print(f(1, 2))", { output: ["99"], error: null }],
     ["function f(a){ a = 42; return arguments[0] } print(f(1))", { output: ["42"], error: null }],
     ["function f(){ return f.length } print(f())", { output: ["0"], error: null }],
-    ["function fact(n){ return n <= 1 ? 1 : n * fact(n \u002d 1) } print(fact(5))", { output: ["120"], error: null }],
-    ["function fib(n){ return n < 2 ? n : fib(n \u002d 1) + fib(n \u002d 2) } print(fib(10))", { output: ["55"], error: null }],
+    ["function fact(n){ return n <= 1 ? 1 : n * fact(n - 1) } print(fact(5))", { output: ["120"], error: null }],
+    ["function fib(n){ return n < 2 ? n : fib(n - 1) + fib(n - 2) } print(fib(10))", { output: ["55"], error: null }],
     ["function id(x){ return x } print(id(id(id(7))))", { output: ["7"], error: null }],
   ];
   it.each(cases)("%s", (source, expected) => {
@@ -45,7 +45,7 @@ describe("function expressions and immediate invocation", () => {
     ["print((function(){ return 42 })())", { output: ["42"], error: null }],
     ["print((function(x){ return x + 1 })(9))", { output: ["10"], error: null }],
     ["var r = (function(){ var secret = 7; return secret })(); print(r)", { output: ["7"], error: null }],
-    ["var f = function fac(n){ return n <= 1 ? 1 : n * fac(n \u002d 1) }; print(f(4))", { output: ["24"], error: null }],
+    ["var f = function fac(n){ return n <= 1 ? 1 : n * fac(n - 1) }; print(f(4))", { output: ["24"], error: null }],
     ["print([1,2,3].map(function(x){ return x + 10 }).join(\",\"))", { output: ["11,12,13"], error: null }],
     ["!function(){ print(\"iife\") }()", { output: ["iife"], error: null }],
     ["var f = function g(){ return 1 }; print(typeof g)", { output: ["undefined"], error: null }],
@@ -86,7 +86,7 @@ describe("object literals and property access", () => {
     ["var o = {n: 0}; o.n = o.n + 1; o.n += 10; print(o.n)", { output: ["11"], error: null }],
     ["var o = {a: 1}; var p = o; p.a = 2; print(o.a)", { output: ["2"], error: null }],
     ["var a = [0, 0]; var i = 0; a[i++] = i; print(a.join(\",\"), i)", { output: ["1,0 1"], error: null }],
-    ["var x = \u002d8; x >>>= 1; print(x)", { output: ["2147483644"], error: null }],
+    ["var x = -8; x >>>= 1; print(x)", { output: ["2147483644"], error: null }],
     ["var x = 5; x |= 2; x ^= 3; x &= 6; print(x)", { output: ["4"], error: null }],
   ];
   it.each(cases)("%s", (source, expected) => {

@@ -19,7 +19,7 @@ describe("if / else", () => {
   });
 });
 
-describe("while and do\u002dwhile", () => {
+describe("while and do-while", () => {
   const cases: Array<[string, { output: string[]; error: string | null }]> = [
     ["var i = 0; while (i < 5) { print(i); i++ }", { output: ["0", "1", "2", "3", "4"], error: null }],
     ["var i = 0, s = 0; while (i < 10) { s += i; i++ } print(s)", { output: ["45"], error: null }],
@@ -37,8 +37,8 @@ describe("for loops", () => {
   const cases: Array<[string, { output: string[]; error: string | null }]> = [
     ["for (var i = 0; i < 5; i++) print(i)", { output: ["0", "1", "2", "3", "4"], error: null }],
     ["var s = 0; for (var i = 1; i <= 100; i++) s += i; print(s)", { output: ["5050"], error: null }],
-    ["for (var i = 0, j = 10; i < j; i++, j\u002d\u002d) print(i, j)", { output: ["0 10", "1 9", "2 8", "3 7", "4 6"], error: null }],
-    ["for (var i = 5; i > 0; i\u002d\u002d) print(i)", { output: ["5", "4", "3", "2", "1"], error: null }],
+    ["for (var i = 0, j = 10; i < j; i++, j--) print(i, j)", { output: ["0 10", "1 9", "2 8", "3 7", "4 6"], error: null }],
+    ["for (var i = 5; i > 0; i--) print(i)", { output: ["5", "4", "3", "2", "1"], error: null }],
     ["var s = 0; for (var i = 0; i < 10; i++) { if (i % 2 === 0) continue; s += i } print(s)", { output: ["25"], error: null }],
     ["for (;;) { print(\"once\"); break }", { output: ["once"], error: null }],
     ["var i = 0; for (; i < 3;) { print(i); i++ }", { output: ["0", "1", "2"], error: null }],
@@ -49,7 +49,7 @@ describe("for loops", () => {
   });
 });
 
-describe("for\u002din over object keys", () => {
+describe("for-in over object keys", () => {
   const cases: Array<[string, { output: string[]; error: string | null }]> = [
     ["var o = {a:1, b:2, c:3}; var s = 0; for (var k in o) s += o[k]; print(s)", { output: ["6"], error: null }],
     ["var o = {x:1, y:2}; var ks = []; for (var k in o) ks.push(k); print(ks.join(\",\"))", { output: ["x,y"], error: null }],
@@ -124,7 +124,7 @@ describe("runtime errors and their names", () => {
     ["try { (void 0)() } catch (e) { print(e.name) }", { output: ["TypeError"], error: null }],
     ["try { var o = {}; o.a.b } catch (e) { print(e.name) }", { output: ["TypeError"], error: null }],
     ["try { null.x = 1 } catch (e) { print(e.name) }", { output: ["TypeError"], error: null }],
-    ["try { new Array(\u002d1) } catch (e) { print(e.name) }", { output: ["RangeError"], error: null }],
+    ["try { new Array(-1) } catch (e) { print(e.name) }", { output: ["RangeError"], error: null }],
   ];
   it.each(cases)("%s", (source, expected) => {
     expect(run(source)).toEqual(expected);

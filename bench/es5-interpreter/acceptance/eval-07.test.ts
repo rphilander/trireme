@@ -14,7 +14,7 @@ describe("String methods", () => {
     ["print(\"hello\".substring(1, 3), \"hello\".substr(1, 3))", { output: ["el ell"], error: null }],
     ["print(\"Hello\".toUpperCase(), \"Hello\".toLowerCase())", { output: ["HELLO hello"], error: null }],
     ["print(\"a,b,c\".split(\",\").join(\"|\"))", { output: ["a|b|c"], error: null }],
-    ["print(\"abc\".split(\"\").join(\"\u002d\"))", { output: ["a\u002db\u002dc"], error: null }],
+    ["print(\"abc\".split(\"\").join(\"-\"))", { output: ["a-b-c"], error: null }],
     ["print(\"hello\".replace(\"l\", \"L\"))", { output: ["heLlo"], error: null }],
     ["print(\"  trim me  \".length)", { output: ["11"], error: null }],
     ["print(\"abc\".concat(\"def\", \"ghi\"))", { output: ["abcdefghi"], error: null }],
@@ -56,7 +56,7 @@ describe("Object and Array constructors and statics", () => {
     ["var a = new Array(1, 2, 3); print(a.join(\",\"))", { output: ["1,2,3"], error: null }],
     ["print(Array.isArray([]), Array.isArray(\"\"))", { output: ["true false"], error: null }],
     ["print(Array.prototype.slice.call({0: \"a\", 1: \"b\", length: 2}).join(\",\"))", { output: ["a,b"], error: null }],
-    ["function f(){ return Array.prototype.join.call(arguments, \"\u002d\") } print(f(1, 2, 3))", { output: ["1\u002d2\u002d3"], error: null }],
+    ["function f(){ return Array.prototype.join.call(arguments, \"-\") } print(f(1, 2, 3))", { output: ["1-2-3"], error: null }],
   ];
   it.each(cases)("%s", (source, expected) => {
     expect(run(source)).toEqual(expected);
@@ -67,10 +67,10 @@ describe("small whole programs", () => {
   const cases: Array<[string, { output: string[]; error: string | null }]> = [
     ["function gcd(a, b){ while (b) { var t = b; b = a % b; a = t } return a } print(gcd(48, 36))", { output: ["12"], error: null }],
     ["function isPrime(n){ if (n < 2) return false; for (var i = 2; i * i <= n; i++) if (n % i === 0) return false; return true } var primes = []; for (var i = 2; i < 20; i++) if (isPrime(i)) primes.push(i); print(primes.join(\",\"))", { output: ["2,3,5,7,11,13,17,19"], error: null }],
-    ["function reverse(s){ var r = \"\"; for (var i = s.length \u002d 1; i >= 0; i\u002d\u002d) r += s.charAt(i); return r } print(reverse(\"hello\"))", { output: ["olleh"], error: null }],
-    ["var memo = {}; function fib(n){ if (n < 2) return n; if (memo[n]) return memo[n]; return memo[n] = fib(n \u002d 1) + fib(n \u002d 2) } print(fib(20))", { output: ["6765"], error: null }],
+    ["function reverse(s){ var r = \"\"; for (var i = s.length - 1; i >= 0; i--) r += s.charAt(i); return r } print(reverse(\"hello\"))", { output: ["olleh"], error: null }],
+    ["var memo = {}; function fib(n){ if (n < 2) return n; if (memo[n]) return memo[n]; return memo[n] = fib(n - 1) + fib(n - 2) } print(fib(20))", { output: ["6765"], error: null }],
     ["function Queue(){ this.items = [] } Queue.prototype.enqueue = function(x){ this.items.push(x) }; Queue.prototype.dequeue = function(){ return this.items.shift() }; var q = new Queue(); q.enqueue(1); q.enqueue(2); q.enqueue(3); print(q.dequeue(), q.dequeue(), q.items.length)", { output: ["1 2 1"], error: null }],
-    ["function bubbleSort(a){ for (var i = 0; i < a.length; i++) for (var j = 0; j < a.length \u002d 1 \u002d i; j++) if (a[j] > a[j + 1]) { var t = a[j]; a[j] = a[j + 1]; a[j + 1] = t } return a } print(bubbleSort([5, 2, 8, 1, 9, 3]).join(\",\"))", { output: ["1,2,3,5,8,9"], error: null }],
+    ["function bubbleSort(a){ for (var i = 0; i < a.length; i++) for (var j = 0; j < a.length - 1 - i; j++) if (a[j] > a[j + 1]) { var t = a[j]; a[j] = a[j + 1]; a[j + 1] = t } return a } print(bubbleSort([5, 2, 8, 1, 9, 3]).join(\",\"))", { output: ["1,2,3,5,8,9"], error: null }],
     ["function range(n){ var a = []; for (var i = 0; i < n; i++) a.push(i); return a } print(range(5).map(function(x){ return x * x }).filter(function(x){ return x % 2 === 0 }).join(\",\"))", { output: ["0,4,16"], error: null }],
     ["function Counter(start){ this.count = start || 0 } Counter.prototype.inc = function(by){ this.count += by || 1; return this }; var c = new Counter(10); c.inc().inc(5).inc(); print(c.count)", { output: ["17"], error: null }],
     ["var tree = { value: 1, children: [{ value: 2, children: [] }, { value: 3, children: [{ value: 4, children: [] }] }] }; function sum(node){ var s = node.value; for (var i = 0; i < node.children.length; i++) s += sum(node.children[i]); return s } print(sum(tree))", { output: ["10"], error: null }],

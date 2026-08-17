@@ -61,7 +61,7 @@ describe("mutating methods: push pop shift unshift splice reverse sort", () => {
     ["var a = [1, 2, 3]; a.reverse(); print(a.join(\",\"))", { output: ["3,2,1"], error: null }],
     ["var a = [3, 1, 2]; a.sort(); print(a.join(\",\"))", { output: ["1,2,3"], error: null }],
     ["var a = [10, 2, 33, 4]; a.sort(); print(a.join(\",\"))", { output: ["10,2,33,4"], error: null }],
-    ["var a = [10, 2, 33, 4]; a.sort(function(x, y){ return x \u002d y }); print(a.join(\",\"))", { output: ["2,4,10,33"], error: null }],
+    ["var a = [10, 2, 33, 4]; a.sort(function(x, y){ return x - y }); print(a.join(\",\"))", { output: ["2,4,10,33"], error: null }],
     ["var a = [\"banana\", \"apple\", \"cherry\"]; a.sort(); print(a.join(\",\"))", { output: ["apple,banana,cherry"], error: null }],
   ];
   it.each(cases)("%s", (source, expected) => {
@@ -69,14 +69,14 @@ describe("mutating methods: push pop shift unshift splice reverse sort", () => {
   });
 });
 
-describe("non\u002dmutating methods: slice concat join indexOf", () => {
+describe("non-mutating methods: slice concat join indexOf", () => {
   const cases: Array<[string, { output: string[]; error: string | null }]> = [
     ["var a = [1, 2, 3, 4, 5]; print(a.slice(1, 3).join(\",\"))", { output: ["2,3"], error: null }],
-    ["var a = [1, 2, 3, 4, 5]; print(a.slice(\u002d2).join(\",\"))", { output: ["4,5"], error: null }],
+    ["var a = [1, 2, 3, 4, 5]; print(a.slice(-2).join(\",\"))", { output: ["4,5"], error: null }],
     ["var a = [1, 2, 3]; print(a.concat([4, 5], 6).join(\",\"))", { output: ["1,2,3,4,5,6"], error: null }],
-    ["print([1, 2, 3].join(\"\u002d\"))", { output: ["1\u002d2\u002d3"], error: null }],
+    ["print([1, 2, 3].join(\"-\"))", { output: ["1-2-3"], error: null }],
     ["print([1, 2, 3].join(\"\"))", { output: ["123"], error: null }],
-    ["print([1, 2, 3].indexOf(2), [1, 2, 3].indexOf(9))", { output: ["1 \u002d1"], error: null }],
+    ["print([1, 2, 3].indexOf(2), [1, 2, 3].indexOf(9))", { output: ["1 -1"], error: null }],
     ["print([1, 2, 3, 2].lastIndexOf(2))", { output: ["3"], error: null }],
     ["var a = [1, 2, 3]; a.slice(); print(a.length)", { output: ["3"], error: null }],
     ["print([\"a\", \"b\", \"c\"].join())", { output: ["a,b,c"], error: null }],
@@ -107,15 +107,15 @@ describe("iteration methods: forEach map filter reduce every some", () => {
 describe("Math", () => {
   const cases: Array<[string, { output: string[]; error: string | null }]> = [
     ["print(Math.floor(3.7), Math.ceil(3.2), Math.round(3.5), Math.round(2.4))", { output: ["3 4 4 2"], error: null }],
-    ["print(Math.abs(\u002d5), Math.abs(5))", { output: ["5 5"], error: null }],
+    ["print(Math.abs(-5), Math.abs(5))", { output: ["5 5"], error: null }],
     ["print(Math.max(1, 5, 3), Math.min(1, 5, 3))", { output: ["5 1"], error: null }],
     ["print(Math.pow(2, 10), Math.sqrt(144))", { output: ["1024 12"], error: null }],
-    ["print(Math.max(), Math.min())", { output: ["\u002dInfinity Infinity"], error: null }],
-    ["print(Math.floor(\u002d3.2), Math.ceil(\u002d3.7))", { output: ["\u002d4 \u002d3"], error: null }],
-    ["print(Math.round(\u002d2.5))", { output: ["\u002d2"], error: null }],
+    ["print(Math.max(), Math.min())", { output: ["-Infinity Infinity"], error: null }],
+    ["print(Math.floor(-3.2), Math.ceil(-3.7))", { output: ["-4 -3"], error: null }],
+    ["print(Math.round(-2.5))", { output: ["-2"], error: null }],
     ["print(Math.PI > 3.14 && Math.PI < 3.15)", { output: ["true"], error: null }],
     ["print(Math.max.apply(null, [3, 1, 4, 1, 5, 9]))", { output: ["9"], error: null }],
-    ["print(Math.sqrt(\u002d1))", { output: ["NaN"], error: null }],
+    ["print(Math.sqrt(-1))", { output: ["NaN"], error: null }],
   ];
   it.each(cases)("%s", (source, expected) => {
     expect(run(source)).toEqual(expected);

@@ -63,6 +63,14 @@ describe("malformed source is a SyntaxError", () => {
     "do print(1)",
     "while",
     "print(1); )(",
+    "throw\n1",
+    "{ a: 1, b: 2 }",
+    "var 08 = 1",
+    "print(1 +)",
+    "a.",
+    "new",
+    "delete",
+    "var x = 1 = 2",
   ];
   it.each(cases)("run(%j) reports SyntaxError", (source) => {
     expect(run(source)).toEqual({ output: [], error: "SyntaxError" });

@@ -42,7 +42,9 @@ describe("comments are skipped", () => {
 
 describe("literal lexing: numbers, strings, escapes", () => {
   const cases: Array<[string, { output: string[]; error: string | null }]> = [
-    ["print(0xff, 0XA, 010, 0.5, .25, 5., 1e3, 1E\u002d2, 2e+3)", { output: ["255 10 8 0.5 0.25 5 1000 0.01 2000"], error: null }],
+    ["print(0xff, 0XA, 010, 0.5, .25, 5., 1e3, 1E-2, 2e+3)", { output: ["255 10 8 0.5 0.25 5 1000 0.01 2000"], error: null }],
+    ["print(08, 09, 08 + 1)", { output: ["8 9 9"], error: null }],
+    ["print(0, 00, 000)", { output: ["0 0 0"], error: null }],
     ["print(\"tab\\there\", \"new\\nline\".length)", { output: ["tab\there 8"], error: null }],
     ["print('single', \"double\")", { output: ["single double"], error: null }],
     ["print(\"quote\\\"inside\")", { output: ["quote\"inside"], error: null }],
@@ -59,20 +61,46 @@ describe("literal lexing: numbers, strings, escapes", () => {
   });
 });
 
-describe("operator lexing that needs the maximal\u002dmunch rule", () => {
+describe("operator lexing that needs the maximal-munch rule", () => {
   const cases: Array<[string, { output: string[]; error: string | null }]> = [
     ["var a = 1; print(a++ + 2)", { output: ["3"], error: null }],
     ["var a = 5; print(a>>>1)", { output: ["2"], error: null }],
     ["print(1<<2>>1)", { output: ["2"], error: null }],
     ["print(!!(1<=2))", { output: ["true"], error: null }],
-    ["print(\u002d1\u002d \u002d1)", { output: ["0"], error: null }],
-    ["var x = 10; x\u002d=3; x+=1; print(x)", { output: ["8"], error: null }],
+    ["print(-1- -1)", { output: ["0"], error: null }],
+    ["var x = 10; x-=3; x+=1; print(x)", { output: ["8"], error: null }],
     ["print(1===1, 1!==2, 1==1, 1!=2)", { output: ["true true true true"], error: null }],
     ["var a = true; print(a?1:2)", { output: ["1"], error: null }],
     ["print(1<2?3:4)", { output: ["3"], error: null }],
     ["print(5%2, 5&3, 5|2, 5^1)", { output: ["1 1 7 4"], error: null }],
     ["var a = 2; a*=3; a/=2; print(a)", { output: ["3"], error: null }],
     ["print(1&&2||0)", { output: ["2"], error: null }],
+  ];
+  it.each(cases)("%s", (source, expected) => {
+    expect(run(source)).toEqual(expected);
+  });
+});
+
+describe("reserved words are allowed as property names (ES5)", () => {
+  const cases: Array<[string, { output: string[]; error: string | null }]> = [
+    ["var o = { if: 1, function: 2, return: 3 }; print(o.if, o.function, o[\"return\"])", { output: ["1 2 3"], error: null }],
+    ["var o = {}; o.class = \"c\"; o.new = \"n\"; print(o.class, o.new)", { output: ["c n"], error: null }],
+    ["var o = { in: 1, typeof: 2, delete: 3, void: 4 }; print(o.in + o.typeof + o.delete + o.void)", { output: ["10"], error: null }],
+    ["var o = { \"true\": 1 }; print(o.true, o[\"true\"])", { output: ["1 1"], error: null }],
+    ["var o = { get: 5, set: 6 }; print(o.get, o.set)", { output: ["5 6"], error: null }],
+  ];
+  it.each(cases)("%s", (source, expected) => {
+    expect(run(source)).toEqual(expected);
+  });
+});
+
+describe("the top-level scope is the global object", () => {
+  const cases: Array<[string, { output: string[]; error: string | null }]> = [
+    ["var g = 10; function h(){ return this.g } print(h())", { output: ["10"], error: null }],
+    ["var flag = 5; print(this.flag)", { output: ["5"], error: null }],
+    ["this.z = 3; print(z)", { output: ["3"], error: null }],
+    ["w = 7; print(this.w)", { output: ["7"], error: null }],
+    ["var x = 1; function f(){ return this } print(f().x)", { output: ["1"], error: null }],
   ];
   it.each(cases)("%s", (source, expected) => {
     expect(run(source)).toEqual(expected);

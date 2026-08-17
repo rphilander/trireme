@@ -145,13 +145,20 @@ const PARSING: Group[] = [
     "var x = 1 /* c */ + 2; print(x)", "// only a comment\n", "print(6) /* end */", "var a = 1;// no space\nprint(a)", "/**\n * doc\n */\nfunction f(){ return 7 } print(f())",
   ] },
   { title: "literal lexing: numbers, strings, escapes", programs: [
-    "print(0xff, 0XA, 010, 0.5, .25, 5., 1e3, 1E-2, 2e+3)", "print(\"tab\\there\", \"new\\nline\".length)", "print('single', \"double\")", "print(\"quote\\\"inside\")",
+    "print(0xff, 0XA, 010, 0.5, .25, 5., 1e3, 1E-2, 2e+3)", "print(08, 09, 08 + 1)", "print(0, 00, 000)", "print(\"tab\\there\", \"new\\nline\".length)", "print('single', \"double\")", "print(\"quote\\\"inside\")",
     "print(\"unicode\\u0041\", \"hex\\x42\")", "print(\"\\\\\", \"back\\\\slash\")", "print(\"line \\\ncontinuation\")", "print(100000000000000000000)", "print(\"a\" + \"\\n\" + \"b\")",
     "print(\"\\t\\r\\n\".length)", "print('\\'', \"\\\"\")",
   ] },
   { title: "operator lexing that needs the maximal-munch rule", programs: [
     "var a = 1; print(a++ + 2)", "var a = 5; print(a>>>1)", "print(1<<2>>1)", "print(!!(1<=2))", "print(-1- -1)", "var x = 10; x-=3; x+=1; print(x)",
     "print(1===1, 1!==2, 1==1, 1!=2)", "var a = true; print(a?1:2)", "print(1<2?3:4)", "print(5%2, 5&3, 5|2, 5^1)", "var a = 2; a*=3; a/=2; print(a)", "print(1&&2||0)",
+  ] },
+  { title: "reserved words are allowed as property names (ES5)", programs: [
+    "var o = { if: 1, function: 2, return: 3 }; print(o.if, o.function, o[\"return\"])", "var o = {}; o.class = \"c\"; o.new = \"n\"; print(o.class, o.new)",
+    "var o = { in: 1, typeof: 2, delete: 3, void: 4 }; print(o.in + o.typeof + o.delete + o.void)", "var o = { \"true\": 1 }; print(o.true, o[\"true\"])", "var o = { get: 5, set: 6 }; print(o.get, o.set)",
+  ] },
+  { title: "the top-level scope is the global object", programs: [
+    "var g = 10; function h(){ return this.g } print(h())", "var flag = 5; print(this.flag)", "this.z = 3; print(z)", "w = 7; print(this.w)", "var x = 1; function f(){ return this } print(f().x)",
   ] },
 ];
 
@@ -166,6 +173,7 @@ const SYNTAX_ERRORS: ErrorGroup[] = [
   { title: "malformed source is a SyntaxError", programs: [
     "var =", "print(", "function (){}", "if (", "print(1", "var x = ;", "1 +", "for (;;", "print(1 2)", "}", "){", "var 1x = 1", "a b c", "print(1))", "if) print(1)", "var x = { a: }",
     "return 1", "break", "continue", "print('unterminated", "var x = 0x", "function f(1){}", "var a = [1, 2", "switch (x) { case }", "try {}", "do print(1)", "while", "print(1); )(",
+    "throw\n1", "{ a: 1, b: 2 }", "var 08 = 1", "print(1 +)", "a.", "new", "delete", "var x = 1 = 2",
   ] },
 ];
 
@@ -174,7 +182,7 @@ const SYNTAX_ERRORS: ErrorGroup[] = [
 // ---------------------------------------------------------------------------
 
 function str(value: string): string {
-  return JSON.stringify(value).replace(/[-￿]/g, (c) => "\\u" + c.charCodeAt(0).toString(16).padStart(4, "0"));
+  return JSON.stringify(value).replace(/[^\x20-\x7e]/g, (c) => "\\u" + c.charCodeAt(0).toString(16).padStart(4, "0"));
 }
 
 function flat(value: unknown): string {

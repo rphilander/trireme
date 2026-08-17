@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { run } from "es5-interpreter";
 
-describe("logical operators short\u002dcircuit and return operands", () => {
+describe("logical operators short-circuit and return operands", () => {
   const cases: Array<[string, { output: string[]; error: string | null }]> = [
     ["print(true && false)", { output: ["false"], error: null }],
     ["print(1 && 2)", { output: ["2"], error: null }],
@@ -48,7 +48,7 @@ describe("var declarations and assignment", () => {
     ["var a = 1, b = 2; print(a + b)", { output: ["3"], error: null }],
     ["var x = 1; x = 2; print(x)", { output: ["2"], error: null }],
     ["var x = 1; x += 4; print(x)", { output: ["5"], error: null }],
-    ["var x = 10; x \u002d= 3; x *= 2; print(x)", { output: ["14"], error: null }],
+    ["var x = 10; x -= 3; x *= 2; print(x)", { output: ["14"], error: null }],
     ["var x = 8; x /= 2; x %= 3; print(x)", { output: ["1"], error: null }],
     ["var x = 1; x <<= 3; print(x)", { output: ["8"], error: null }],
     ["var s = \"a\"; s += \"b\"; s += \"c\"; print(s)", { output: ["abc"], error: null }],
@@ -56,7 +56,7 @@ describe("var declarations and assignment", () => {
     ["var x = 1; var x = 2; print(x)", { output: ["2"], error: null }],
     ["var x = 3; print(x++, x)", { output: ["3 4"], error: null }],
     ["var x = 3; print(++x, x)", { output: ["4 4"], error: null }],
-    ["var x = 3; print(x\u002d\u002d, \u002d\u002dx)", { output: ["3 1"], error: null }],
+    ["var x = 3; print(x--, --x)", { output: ["3 1"], error: null }],
     ["var o = {n:1}; o.n++; print(o.n)", { output: ["2"], error: null }],
     ["var x = 1; var x; print(x)", { output: ["1"], error: null }],
     ["var x = \"5\"; x++; print(x, typeof x)", { output: ["6 number"], error: null }],
