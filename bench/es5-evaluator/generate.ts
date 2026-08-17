@@ -19,11 +19,16 @@
  * The observable contract is `print` and thrown errors only, so nothing
  * depends on a completion value or on how a function stringifies. Guards:
  *   - every program parses under ecmaVersion 5 (the input is a real ES5 tree);
- *   - the oracle is deterministic — Date, Math.random and other clocks are
- *     refused, and a program that hits the 2s vm timeout is a generator error;
- *   - no program's expected output contains a raw function's source text
- *     (implementation-formatted) unless the case explicitly opts in;
- *   - no source appears twice in one file.
+ *   - the oracle is deterministic — a program that reaches for a global or
+ *     construct outside the ES5 set the spec lists (Date, Math.random, JSON,
+ *     RegExp, Map, a regex literal, …) is refused, so the vm can never enshrine
+ *     a behaviour a spec-correct evaluator has no way to reproduce;
+ *   - a program that hits the 2s vm timeout is a generator error, not a silent
+ *     unpassable test;
+ *   - no expected output contains a raw function's source text or a native-code
+ *     marker (implementation-formatted);
+ *   - no source appears twice in one file, and every file stays under the
+ *     harness's 80,000-character read limit.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -43,6 +48,9 @@ const READ_LIMIT = 80_000;
 
 type EvalResult = { output: string[]; error: string | null };
 
+/** Every case problem, reported together at the end. */
+const problems: string[] = [];
+
 function toStr(value: unknown): string {
   return typeof value === "symbol" ? (value as symbol).toString() : String(value);
 }
@@ -54,7 +62,13 @@ function oracle(source: string): EvalResult {
     vm.runInNewContext(source, sandbox, { timeout: 2000 });
     return { output, error: null };
   } catch (error) {
-    const name = error && typeof error === "object" && "name" in error ? String((error as { name: unknown }).name) : toStr(error);
+    if (error && typeof error === "object" && (error as { code?: unknown }).code === "ERR_SCRIPT_EXECUTION_TIMEOUT") {
+      problems.push(`${JSON.stringify(source)}: did not terminate within the oracle's 2s budget`);
+    }
+    // A thrown object with a string `name` reports that name; anything else its
+    // ToString. (A thrown *function* also has a name but is not exercised.)
+    const thrown = error as { name?: unknown };
+    const name = error && typeof error === "object" && typeof thrown.name === "string" ? thrown.name : toStr(error);
     return { output, error: name };
   }
 }
@@ -138,6 +152,7 @@ const FILES: Record<string, Group[]> = {
       "print(1)", "print(1 + 2)", "print(2 * 3 + 4)", "print(2 + 3 * 4)", "print((2 + 3) * 4)", "print(10 - 3 - 2)", "print(10 / 4)", "print(10 % 3)", "print(-5 % 3)", "print(5 % -3)",
       "print(2 * 3 * 4)", "print(1 + 2 - 3 + 4)", "print(-3)", "print(-(2 + 3))", "print(+\"5\")", "print(0.1 + 0.2)", "print(1 / 3)", "print(1e3)", "print(1e21)", "print(1e-7)",
       "print(0xff)", "print(010)", "print(3.14)", "print(.5)", "print(100 / 0)", "print(-100 / 0)", "print(0 / 0)", "print(Infinity)", "print(-Infinity)", "print(NaN)", "print(2 * 2 * 2 * 2)",
+      "print()",
     ] },
     { title: "bitwise and shift operators coerce to int32", programs: [
       "print(5 & 3)", "print(5 | 2)", "print(5 ^ 1)", "print(~5)", "print(1 << 4)", "print(256 >> 2)", "print(-1 >>> 28)", "print(-8 >> 1)", "print(3.9 & 3.9)", "print(2147483647 + 1 | 0)",
@@ -147,6 +162,7 @@ const FILES: Record<string, Group[]> = {
       "print(typeof 1)", "print(typeof \"a\")", "print(typeof true)", "print(typeof undefined)", "print(typeof null)", "print(typeof {})", "print(typeof [])", "print(typeof print)",
       "print(!true)", "print(!0)", "print(!\"\")", "print(!\"a\")", "print(!null)", "print(!!\"x\")", "print(void 0)", "print(void \"anything\")", "print(-\"3\")", "print(+true)", "print(+null)", "print(+undefined)",
       "print(- -5)", "print(typeof typeof 1)", "print(!!!true)",
+      "print(+\"0x10\", +\"1e2\", +\" 12 \", +\"\")", "print(1 << 32, 5 >>> 32)", "print(-0, 1 / -0)",
     ] },
     { title: "string concatenation and the plus operator", programs: [
       "print(\"a\" + \"b\")", "print(\"a\" + 1)", "print(1 + \"a\")", "print(1 + 2 + \"a\")", "print(\"a\" + 1 + 2)", "print(true + \"!\")", "print(null + \"\")", "print(undefined + \"\")", "print([] + [])",
@@ -182,6 +198,7 @@ const FILES: Record<string, Group[]> = {
       "var x = 5; print(x)", "var x; print(x)", "var a = 1, b = 2; print(a + b)", "var x = 1; x = 2; print(x)", "var x = 1; x += 4; print(x)", "var x = 10; x -= 3; x *= 2; print(x)",
       "var x = 8; x /= 2; x %= 3; print(x)", "var x = 1; x <<= 3; print(x)", "var s = \"a\"; s += \"b\"; s += \"c\"; print(s)", "var a = b = 5; print(a, b)", "var x = 1; var x = 2; print(x)",
       "var x = 3; print(x++, x)", "var x = 3; print(++x, x)", "var x = 3; print(x--, --x)", "var o = {n:1}; o.n++; print(o.n)",
+      "var x = 1; var x; print(x)", "var x = \"5\"; x++; print(x, typeof x)", "var t = \"outer\"; function f(){ if (true) { var t = \"inner\" } return t } f(); print(t)",
     ] },
     { title: "hoisting", programs: [
       "print(x); var x = 5;", "print(typeof x); var x = 5;", "print(f()); function f(){ return 42 }", "var g = function(){ return 1 }; print(g())",
@@ -195,9 +212,11 @@ const FILES: Record<string, Group[]> = {
       "var x = \"global\"; function f(){ var x = \"local\"; function g(){ return x } return g() } print(f(), x)",
       "function counter(){ var n = 0; return { inc: function(){ return ++n }, get: function(){ return n } } } var c = counter(); c.inc(); c.inc(); print(c.get())",
       "var a = 1; function f(){ return a } a = 2; print(f())",
+      "var f = []; for (var i = 0; i < 3; i++) f.push(function(){ return i }); print(f[0](), f[1](), f[2]())",
     ] },
     { title: "the global object and undeclared reads", programs: [
       "x = 5; print(x)", "print(typeof undeclaredName)", "try { readUndeclared } catch (e) { print(e.name) }", "foo = 1; print(typeof foo); var bar; print(typeof bar)",
+      "var x = 7; function f(){ return this.x } print(f())", "this.y = 3; print(y)",
     ] },
   ],
   "control-flow": [
@@ -219,11 +238,13 @@ const FILES: Record<string, Group[]> = {
       "var o = {a:1, b:2, c:3}; var s = 0; for (var k in o) s += o[k]; print(s)", "var o = {x:1, y:2}; var ks = []; for (var k in o) ks.push(k); print(ks.join(\",\"))",
       "var o = {a:1}; var proto = {b:2}; function O(){} O.prototype = proto; var obj = new O(); obj.a = 1; var ks = []; for (var k in obj) ks.push(k); ks.sort(); print(ks.join(\",\"))",
       "var count = 0; for (var k in {}) count++; print(count)", "var a = [10,20,30]; var idx = []; for (var i in a) idx.push(i); print(idx.join(\",\"))",
+      "var a = [10]; for (var i in a) print(i === \"0\", typeof i)", "for (var k in null) print(k); print(\"done\")",
     ] },
     { title: "switch", programs: [
       "switch (2) { case 1: print(\"a\"); break; case 2: print(\"b\"); break; default: print(\"d\") }", "switch (9) { case 1: print(\"a\"); break; default: print(\"d\") }",
       "switch (1) { case 1: print(\"a\"); case 2: print(\"b\"); break; case 3: print(\"c\") }", "var x = \"b\"; switch (x) { case \"a\": print(1); break; case \"b\": print(2); break }",
-      "switch (1) { default: print(\"d\"); case 1: print(\"one\") }", "switch (3) { case 1: case 2: case 3: print(\"low\"); break; default: print(\"high\") }", "switch (\"1\") { case 1: print(\"num\"); break; default: print(\"str\") }",
+      "switch (1) { default: print(\"d\"); case 1: print(\"one\") }",
+      "switch (9) { default: print(\"d\"); case 1: print(\"one\") }", "switch (3) { case 1: case 2: case 3: print(\"low\"); break; default: print(\"high\") }", "switch (\"1\") { case 1: print(\"num\"); break; default: print(\"str\") }",
     ] },
     { title: "labels, break and continue", programs: [
       "outer: for (var i = 0; i < 3; i++) { for (var j = 0; j < 3; j++) { if (j === 1) continue outer; print(i, j) } }",
@@ -237,12 +258,15 @@ const FILES: Record<string, Group[]> = {
       "try { print(\"a\"); throw 1; print(\"unreached\") } catch (e) { print(\"caught\") } finally { print(\"finally\") }", "try { print(\"a\") } finally { print(\"b\") }",
       "function f(){ try { return \"try\" } finally { print(\"finally ran\") } } print(f())", "try { try { throw \"inner\" } finally { print(\"inner finally\") } } catch (e) { print(\"outer\", e) }",
       "var log = []; try { log.push(1); throw 0 } catch (e) { log.push(2) } finally { log.push(3) } print(log.join(\",\"))",
+      "var e = \"outer\"; try { throw \"inner\" } catch (e) { print(e) } print(e)",
       "function f(){ for (var i = 0; i < 5; i++) { try { if (i === 2) throw i } catch (e) { continue } print(i) } } f()",
+      "function f(){ try { return 1 } finally { return 2 } } print(f())", "function f(){ try { throw new Error(\"x\") } finally { return \"ok\" } } print(f())", "for (var i = 0; i < 3; i++) { try { if (i === 1) break } finally { print(\"f\", i) } } print(\"done\")",
     ] },
     { title: "runtime errors and their names", programs: [
       "try { null.x } catch (e) { print(e.name) }", "try { undefined.x } catch (e) { print(e.name) }", "try { undeclaredThing } catch (e) { print(e.name) }", "try { var f = 5; f() } catch (e) { print(e.name) }",
       "try { null.x } catch (e) { print(e instanceof TypeError, e instanceof Error) }", "try { throw new RangeError(\"r\") } catch (e) { print(e.name, e.message) }",
       "try { (void 0)() } catch (e) { print(e.name) }", "try { var o = {}; o.a.b } catch (e) { print(e.name) }",
+      "try { null.x = 1 } catch (e) { print(e.name) }", "try { new Array(-1) } catch (e) { print(e.name) }",
     ] },
     { title: "exceptions propagate across calls", programs: [
       "function a(){ b() } function b(){ c() } function c(){ throw new Error(\"deep\") } try { a() } catch (e) { print(e.message) }",
@@ -254,12 +278,14 @@ const FILES: Record<string, Group[]> = {
     { title: "parameters, arguments and return", programs: [
       "function add(a, b){ return a + b } print(add(2, 3))", "function f(a, b){ return a + b } print(f(2))", "function f(a){ return a } print(f(1, 2, 3))", "function f(){ return } print(f())", "function f(){} print(f())",
       "function f(){ return arguments.length } print(f(), f(1), f(1, 2, 3))", "function sum(){ var s = 0; for (var i = 0; i < arguments.length; i++) s += arguments[i]; return s } print(sum(1, 2, 3, 4))",
-      "function f(a, b){ arguments[0] = 99; return a } print(f(1, 2))", "function f(){ return f.length } print(f())", "function fact(n){ return n <= 1 ? 1 : n * fact(n - 1) } print(fact(5))",
+      "function f(a, b){ arguments[0] = 99; return a } print(f(1, 2))",
+      "function f(a){ a = 42; return arguments[0] } print(f(1))", "function f(){ return f.length } print(f())", "function fact(n){ return n <= 1 ? 1 : n * fact(n - 1) } print(fact(5))",
       "function fib(n){ return n < 2 ? n : fib(n - 1) + fib(n - 2) } print(fib(10))", "function id(x){ return x } print(id(id(id(7))))",
     ] },
     { title: "function expressions and immediate invocation", programs: [
       "var f = function(x){ return x * 2 }; print(f(21))", "print((function(){ return 42 })())", "print((function(x){ return x + 1 })(9))", "var r = (function(){ var secret = 7; return secret })(); print(r)",
       "var f = function fac(n){ return n <= 1 ? 1 : n * fac(n - 1) }; print(f(4))", "print([1,2,3].map(function(x){ return x + 10 }).join(\",\"))", "!function(){ print(\"iife\") }()",
+      "var f = function g(){ return 1 }; print(typeof g)",
     ] },
     { title: "this and call/apply", programs: [
       "var o = { n: 10, get: function(){ return this.n } }; print(o.get())", "var o = { n: 5, f: function(){ return this.n } }; var g = o.f; print(typeof (function(){ try { return g() } catch(e){ return e.name } })())",
@@ -273,13 +299,18 @@ const FILES: Record<string, Group[]> = {
       "var o = {a: 1, b: 2}; print(o.a, o.b)", "var o = {}; o.x = 5; print(o.x)", "var o = {a: 1}; o[\"b\"] = 2; print(o.a + o.b)", "var o = {\"a b\": 1}; print(o[\"a b\"])", "var o = {1: \"one\", 2: \"two\"}; print(o[1], o[2])",
       "var o = {a: {b: {c: 42}}}; print(o.a.b.c)", "var o = {a: 1}; print(o.missing)", "var o = {a: 1}; print(typeof o.missing)", "var k = \"dyn\"; var o = {}; o[k] = 9; print(o.dyn)", "var o = {get: 1, if: 2, class: 3}; print(o.get, o.if, o.class)",
       "var o = {a: 1, b: 2}; delete o.a; print(o.a, o.b, \"a\" in o)", "var o = {n: 0}; o.n = o.n + 1; o.n += 10; print(o.n)", "var o = {a: 1}; var p = o; p.a = 2; print(o.a)",
+      "var a = [0, 0]; var i = 0; a[i++] = i; print(a.join(\",\"), i)", "var x = -8; x >>>= 1; print(x)", "var x = 5; x |= 2; x ^= 3; x &= 6; print(x)",
     ] },
     { title: "in, hasOwnProperty and prototype chains", programs: [
       "var o = {a: 1}; print(\"a\" in o, \"b\" in o, \"toString\" in o)", "var o = {a: 1}; print(o.hasOwnProperty(\"a\"), o.hasOwnProperty(\"toString\"))",
       "function Animal(){} Animal.prototype.legs = 4; var a = new Animal(); print(a.legs, a.hasOwnProperty(\"legs\"))", "var base = {greet: function(){ return \"hi\" }}; var o = Object.create(base); print(o.greet())",
       "function A(){} A.prototype.x = 1; function B(){} B.prototype = new A(); var b = new B(); print(b.x)", "var o = {a: 1}; print(o.toString())", "var o = {a: 1}; print(o.valueOf() === o)",
+      "var o = {a: 1}; print(o.propertyIsEnumerable(\"a\"), o.propertyIsEnumerable(\"toString\"))", "var proto = {}; function C(){} C.prototype = proto; print(proto.isPrototypeOf(new C()))",
+      "var o = { valueOf: function(){ return 7 } }; print(o + 1, o + \"\", o * 2, o == 7)", "var o = { toString: function(){ return \"T\" }, valueOf: function(){ return 9 } }; print(String(o), o + \"\")",
       "print(Object.prototype.toString.call([]))", "print(Object.keys({a: 1, b: 2, c: 3}).length)", "var o = {b: 2, a: 1}; print(Object.keys(o).join(\",\"))", "print(Object.getPrototypeOf([]) === Array.prototype)",
     ] },
+  ],
+  "objects-oo": [
     { title: "constructors and new", programs: [
       "function Point(x, y){ this.x = x; this.y = y } var p = new Point(3, 4); print(p.x, p.y)", "function Point(x, y){ this.x = x; this.y = y } Point.prototype.dist = function(){ return Math.sqrt(this.x*this.x + this.y*this.y) }; print(new Point(3, 4).dist())",
       "function C(){ this.v = 1 } var o = new C(); print(o instanceof C, o instanceof Object)", "function C(){ return 5 } print(typeof new C())", "function C(){ this.a = 1; return {b: 2} } print(new C().a, new C().b)",
@@ -294,7 +325,8 @@ const FILES: Record<string, Group[]> = {
   "arrays": [
     { title: "array literals, indexing and length", programs: [
       "var a = [1, 2, 3]; print(a[0], a[1], a[2], a.length)", "var a = []; a[0] = \"x\"; a[5] = \"y\"; print(a.length, a[0], a[5], a[2])", "var a = [1, 2, 3]; a.length = 1; print(a.join(\",\"), a.length)",
-      "var a = [1, 2, 3]; a[10] = 4; print(a.length)", "var a = [1, , 3]; print(a.length, a[1])", "var a = [[1, 2], [3, 4]]; print(a[0][1], a[1][0])", "var a = [1, 2, 3]; a[1] = 20; print(a.join(\",\"))", "print([].length, [1].length, [1, 2, 3, 4].length)",
+      "var a = [1, 2, 3]; a[10] = 4; print(a.length)", "var a = [1, , 3]; print(a.length, a[1])",
+      "print([1,,3].join(\",\"))", "var a = [[1, 2], [3, 4]]; print(a[0][1], a[1][0])", "var a = [1, 2, 3]; a[1] = 20; print(a.join(\",\"))", "print([].length, [1].length, [1, 2, 3, 4].length)",
       "var a = [1, 2, 3]; print(a instanceof Array, Array.isArray(a), Array.isArray({}))", "var a = [1, 2, 3]; print(\"length\" in a, 0 in a, 5 in a)",
     ] },
     { title: "mutating methods: push pop shift unshift splice reverse sort", programs: [
@@ -366,11 +398,45 @@ const program = (node: unknown): Program => node as Program;
 `;
 
 const seen = new Set<string>();
-const problems: string[] = [];
 
-function forbid(source: string): void {
-  if (/\b(Date|Math\s*\.\s*random|Math\.random|setTimeout|setInterval|process|require|globalThis|eval|Function\s*\()/.test(source)) {
-    problems.push(`${JSON.stringify(source)}: uses a nondeterministic or out-of-scope global`);
+/**
+ * Names the vm's global has but the spec's ES5 subset does not. Reaching for
+ * one would let the vm answer for a construct a spec-correct evaluator cannot
+ * reproduce, so the program is refused.
+ */
+const OUT_OF_SCOPE = new Set([
+  "Date", "JSON", "RegExp", "Map", "Set", "WeakMap", "WeakSet", "Promise", "Symbol", "Proxy", "Reflect",
+  "console", "escape", "unescape", "encodeURI", "encodeURIComponent", "decodeURI", "decodeURIComponent",
+  "Buffer", "ArrayBuffer", "Int8Array", "Uint8Array", "Float64Array", "Int32Array", "Uint32Array",
+  "Intl", "globalThis", "process", "require", "setTimeout", "setInterval", "eval", "structuredClone", "queueMicrotask",
+]);
+
+function forbid(source: string, ast: unknown): void {
+  const walk = (node: unknown): void => {
+    if (Array.isArray(node)) { node.forEach(walk); return; }
+    if (!node || typeof node !== "object") return;
+    const n = node as Record<string, unknown>;
+    if (n.type === "Identifier" && typeof n.name === "string" && OUT_OF_SCOPE.has(n.name)) {
+      problems.push(`${JSON.stringify(source)}: uses \`${n.name}\`, which is outside the ES5 subset the spec lists`);
+    }
+    if (n.type === "Literal" && "regex" in n) {
+      problems.push(`${JSON.stringify(source)}: contains a regular-expression literal, which is out of scope`);
+    }
+    if (/\bMath\s*\.\s*random\b/.test(source)) {
+      problems.push(`${JSON.stringify(source)}: uses Math.random (nondeterministic)`);
+    }
+    for (const v of Object.values(n)) walk(v);
+  };
+  walk(ast);
+}
+
+/** Implementation-formatted text that must not appear in an expected result. */
+function checkResult(source: string, result: EvalResult): void {
+  const strings = [...result.output, result.error ?? ""];
+  for (const s of strings) {
+    if (/function\s*\(|=>|\[native code\]/.test(s)) {
+      problems.push(`${JSON.stringify(source)}: expected output contains a function's source text or a native-code marker`);
+    }
   }
 }
 
@@ -392,7 +458,6 @@ function emitFile(name: string, groups: Group[]): { content: string; count: numb
         continue;
       }
       seen.add(`${name}:${source}`);
-      forbid(source);
       let ast: unknown;
       try {
         ast = tree(source);
@@ -400,7 +465,9 @@ function emitFile(name: string, groups: Group[]): { content: string; count: numb
         problems.push(`${name}: acorn rejects ${JSON.stringify(source)}: ${error instanceof Error ? error.message : String(error)}`);
         continue;
       }
+      forbid(source, ast);
       const result = oracle(source);
+      checkResult(source, result);
       count++;
       const literal = pretty(ast, 6);
       lines.push(`    [${str(source)},`, `      program(${literal}),`, `      ${renderResult(result)}],`);

@@ -2,7 +2,7 @@
   "name": "es5-evaluator-generator",
   "private": true,
   "type": "module",
-  "description": "Tooling for generating the es5-evaluator acceptance suite: acorn parses the test programs (and is vendored into acceptance/support for the tests); Node's vm is the oracle. Not part of the job.",
+  "description": "Tooling for generating the es5-evaluator acceptance suite: acorn parses the test programs to embed their trees as inputs; Node vm is the oracle for results. Not part of the job.",
   "dependencies": {
     "acorn": "8.18.0",
     "astring": "1.9.0"

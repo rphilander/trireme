@@ -121,8 +121,10 @@ objects (including arrays and functions). `typeof` yields `"undefined"`,
   chain; a missing property is `undefined`; reading a property of `null` or
   `undefined` is a `TypeError`. A computed key is ToString'd (numbers included).
 - **Assignment** `=` and the compound forms (`+= -= *= /= %= <<= >>= >>>= &=
-  |= ^=`) evaluate right-to-left, write to a variable, an object property, or an
-  array index, and yield the assigned value. Assigning to an undeclared name
+  |= ^=`) write to a variable, an object property, or an array index and yield
+  the assigned value; a chain (`a = b = 5`) associates to the right. Each
+  assignment resolves its target reference before evaluating the right-hand
+  side, as ES5 does. Assigning to an undeclared name
   creates a global. `++`/`--`, prefix and postfix, read, coerce with ToNumber,
   write back, and yield the new or old number respectively.
 - **Calls.** `f(a, b)` evaluates the callee and arguments and invokes; calling
@@ -221,6 +223,11 @@ The evaluator provides these standard globals, and no others beyond `print`:
 
 ## Constraints
 
+The evaluator interprets the tree itself. It must not reconstruct source text
+and hand it to the host to run: no `eval`, no `new Function`, no `node:vm` or
+any other host evaluator, and no regenerating the program as a string. The
+point of the rung is to evaluate ES5, not to delegate it.
+
 Pure with respect to the outside world: no real I/O, no clock, no randomness,
 no dependencies. The same tree always produces the same `EvalResult`. `print`
 is the only side channel and it only appends to `output`.
@@ -243,9 +250,11 @@ accepted; `this` in a plain call is the global object). No `RegExp` engine, no
 values in the result, and no dependence on `Function.prototype.toString`
 output. No property attributes beyond what getters/setters and `hasOwnProperty`
 /`Object.keys` observe; no `Object.defineProperty`, no `Object.freeze`, no
-sealed or non-enumerable user properties. No `eval` or `new Function`. Numeric
-formatting follows Node's (ES5 Number-to-String), which the suite treats as
-authoritative.
+sealed or non-enumerable user properties. No `eval` or `new Function` in the evaluated program. No `with` statement,
+`debugger` statement, or regular-expression literal appears in the suite; their
+evaluation is unspecified (the input contract permits the nodes, but nothing
+requires you to run them). Numeric formatting follows Node's (ES5
+Number-to-String), which the suite treats as authoritative.
 
 ## Examples
 

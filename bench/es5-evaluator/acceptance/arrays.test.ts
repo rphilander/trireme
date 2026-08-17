@@ -191,6 +191,33 @@ describe("array literals, indexing and length", () => {
         sourceType: "script",
       }),
       { output: ["3 undefined"], error: null }],
+    ["print([1,,3].join(\",\"))",
+      program({
+        type: "Program",
+        body: [
+          {
+            type: "ExpressionStatement",
+            expression: {
+              type: "CallExpression",
+              callee: {type: "Identifier", name: "print"},
+              arguments: [
+                {
+                  type: "CallExpression",
+                  callee: {
+                    type: "MemberExpression",
+                    object: {type: "ArrayExpression", elements: [{type: "Literal", value: 1, raw: "1"}, null, {type: "Literal", value: 3, raw: "3"}]},
+                    property: {type: "Identifier", name: "join"},
+                    computed: false,
+                  },
+                  arguments: [{type: "Literal", value: ",", raw: "\",\""}],
+                },
+              ],
+            },
+          },
+        ],
+        sourceType: "script",
+      }),
+      { output: ["1,,3"], error: null }],
     ["var a = [[1, 2], [3, 4]]; print(a[0][1], a[1][0])",
       program({
         type: "Program",

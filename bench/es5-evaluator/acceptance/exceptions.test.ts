@@ -294,6 +294,29 @@ describe("try / catch / finally", () => {
         sourceType: "script",
       }),
       { output: ["1,2,3"], error: null }],
+    ["var e = \"outer\"; try { throw \"inner\" } catch (e) { print(e) } print(e)",
+      program({
+        type: "Program",
+        body: [
+          {type: "VariableDeclaration", declarations: [{type: "VariableDeclarator", id: {type: "Identifier", name: "e"}, init: {type: "Literal", value: "outer", raw: "\"outer\""}}], kind: "var"},
+          {
+            type: "TryStatement",
+            block: {type: "BlockStatement", body: [{type: "ThrowStatement", argument: {type: "Literal", value: "inner", raw: "\"inner\""}}]},
+            handler: {
+              type: "CatchClause",
+              param: {type: "Identifier", name: "e"},
+              body: {
+                type: "BlockStatement",
+                body: [{type: "ExpressionStatement", expression: {type: "CallExpression", callee: {type: "Identifier", name: "print"}, arguments: [{type: "Identifier", name: "e"}]}}],
+              },
+            },
+            finalizer: null,
+          },
+          {type: "ExpressionStatement", expression: {type: "CallExpression", callee: {type: "Identifier", name: "print"}, arguments: [{type: "Identifier", name: "e"}]}},
+        ],
+        sourceType: "script",
+      }),
+      { output: ["inner", "outer"], error: null }],
     ["function f(){ for (var i = 0; i < 5; i++) { try { if (i === 2) throw i } catch (e) { continue } print(i) } } f()",
       program({
         type: "Program",
@@ -342,6 +365,111 @@ describe("try / catch / finally", () => {
         sourceType: "script",
       }),
       { output: ["0", "1", "3", "4"], error: null }],
+    ["function f(){ try { return 1 } finally { return 2 } } print(f())",
+      program({
+        type: "Program",
+        body: [
+          {
+            type: "FunctionDeclaration",
+            id: {type: "Identifier", name: "f"},
+            params: [],
+            body: {
+              type: "BlockStatement",
+              body: [
+                {
+                  type: "TryStatement",
+                  block: {type: "BlockStatement", body: [{type: "ReturnStatement", argument: {type: "Literal", value: 1, raw: "1"}}]},
+                  handler: null,
+                  finalizer: {type: "BlockStatement", body: [{type: "ReturnStatement", argument: {type: "Literal", value: 2, raw: "2"}}]},
+                },
+              ],
+            },
+            expression: false,
+          },
+          {
+            type: "ExpressionStatement",
+            expression: {type: "CallExpression", callee: {type: "Identifier", name: "print"}, arguments: [{type: "CallExpression", callee: {type: "Identifier", name: "f"}, arguments: []}]},
+          },
+        ],
+        sourceType: "script",
+      }),
+      { output: ["2"], error: null }],
+    ["function f(){ try { throw new Error(\"x\") } finally { return \"ok\" } } print(f())",
+      program({
+        type: "Program",
+        body: [
+          {
+            type: "FunctionDeclaration",
+            id: {type: "Identifier", name: "f"},
+            params: [],
+            body: {
+              type: "BlockStatement",
+              body: [
+                {
+                  type: "TryStatement",
+                  block: {
+                    type: "BlockStatement",
+                    body: [{type: "ThrowStatement", argument: {type: "NewExpression", callee: {type: "Identifier", name: "Error"}, arguments: [{type: "Literal", value: "x", raw: "\"x\""}]}}],
+                  },
+                  handler: null,
+                  finalizer: {type: "BlockStatement", body: [{type: "ReturnStatement", argument: {type: "Literal", value: "ok", raw: "\"ok\""}}]},
+                },
+              ],
+            },
+            expression: false,
+          },
+          {
+            type: "ExpressionStatement",
+            expression: {type: "CallExpression", callee: {type: "Identifier", name: "print"}, arguments: [{type: "CallExpression", callee: {type: "Identifier", name: "f"}, arguments: []}]},
+          },
+        ],
+        sourceType: "script",
+      }),
+      { output: ["ok"], error: null }],
+    ["for (var i = 0; i < 3; i++) { try { if (i === 1) break } finally { print(\"f\", i) } } print(\"done\")",
+      program({
+        type: "Program",
+        body: [
+          {
+            type: "ForStatement",
+            init: {type: "VariableDeclaration", declarations: [{type: "VariableDeclarator", id: {type: "Identifier", name: "i"}, init: {type: "Literal", value: 0, raw: "0"}}], kind: "var"},
+            test: {type: "BinaryExpression", left: {type: "Identifier", name: "i"}, operator: "<", right: {type: "Literal", value: 3, raw: "3"}},
+            update: {type: "UpdateExpression", operator: "++", prefix: false, argument: {type: "Identifier", name: "i"}},
+            body: {
+              type: "BlockStatement",
+              body: [
+                {
+                  type: "TryStatement",
+                  block: {
+                    type: "BlockStatement",
+                    body: [
+                      {
+                        type: "IfStatement",
+                        test: {type: "BinaryExpression", left: {type: "Identifier", name: "i"}, operator: "===", right: {type: "Literal", value: 1, raw: "1"}},
+                        consequent: {type: "BreakStatement", label: null},
+                        alternate: null,
+                      },
+                    ],
+                  },
+                  handler: null,
+                  finalizer: {
+                    type: "BlockStatement",
+                    body: [
+                      {
+                        type: "ExpressionStatement",
+                        expression: {type: "CallExpression", callee: {type: "Identifier", name: "print"}, arguments: [{type: "Literal", value: "f", raw: "\"f\""}, {type: "Identifier", name: "i"}]},
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+          {type: "ExpressionStatement", expression: {type: "CallExpression", callee: {type: "Identifier", name: "print"}, arguments: [{type: "Literal", value: "done", raw: "\"done\""}]}},
+        ],
+        sourceType: "script",
+      }),
+      { output: ["f 0", "f 1", "done"], error: null }],
   ];
   it.each(cases)("%s", (_source, ast, expected) => {
     expect(evaluate(ast)).toEqual(expected);
@@ -636,6 +764,91 @@ describe("runtime errors and their names", () => {
         sourceType: "script",
       }),
       { output: ["TypeError"], error: null }],
+    ["try { null.x = 1 } catch (e) { print(e.name) }",
+      program({
+        type: "Program",
+        body: [
+          {
+            type: "TryStatement",
+            block: {
+              type: "BlockStatement",
+              body: [
+                {
+                  type: "ExpressionStatement",
+                  expression: {
+                    type: "AssignmentExpression",
+                    operator: "=",
+                    left: {type: "MemberExpression", object: {type: "Literal", value: null, raw: "null"}, property: {type: "Identifier", name: "x"}, computed: false},
+                    right: {type: "Literal", value: 1, raw: "1"},
+                  },
+                },
+              ],
+            },
+            handler: {
+              type: "CatchClause",
+              param: {type: "Identifier", name: "e"},
+              body: {
+                type: "BlockStatement",
+                body: [
+                  {
+                    type: "ExpressionStatement",
+                    expression: {
+                      type: "CallExpression",
+                      callee: {type: "Identifier", name: "print"},
+                      arguments: [{type: "MemberExpression", object: {type: "Identifier", name: "e"}, property: {type: "Identifier", name: "name"}, computed: false}],
+                    },
+                  },
+                ],
+              },
+            },
+            finalizer: null,
+          },
+        ],
+        sourceType: "script",
+      }),
+      { output: ["TypeError"], error: null }],
+    ["try { new Array(-1) } catch (e) { print(e.name) }",
+      program({
+        type: "Program",
+        body: [
+          {
+            type: "TryStatement",
+            block: {
+              type: "BlockStatement",
+              body: [
+                {
+                  type: "ExpressionStatement",
+                  expression: {
+                    type: "NewExpression",
+                    callee: {type: "Identifier", name: "Array"},
+                    arguments: [{type: "UnaryExpression", operator: "-", prefix: true, argument: {type: "Literal", value: 1, raw: "1"}}],
+                  },
+                },
+              ],
+            },
+            handler: {
+              type: "CatchClause",
+              param: {type: "Identifier", name: "e"},
+              body: {
+                type: "BlockStatement",
+                body: [
+                  {
+                    type: "ExpressionStatement",
+                    expression: {
+                      type: "CallExpression",
+                      callee: {type: "Identifier", name: "print"},
+                      arguments: [{type: "MemberExpression", object: {type: "Identifier", name: "e"}, property: {type: "Identifier", name: "name"}, computed: false}],
+                    },
+                  },
+                ],
+              },
+            },
+            finalizer: null,
+          },
+        ],
+        sourceType: "script",
+      }),
+      { output: ["RangeError"], error: null }],
   ];
   it.each(cases)("%s", (_source, ast, expected) => {
     expect(evaluate(ast)).toEqual(expected);

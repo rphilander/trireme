@@ -243,6 +243,35 @@ describe("parameters, arguments and return", () => {
         sourceType: "script",
       }),
       { output: ["99"], error: null }],
+    ["function f(a){ a = 42; return arguments[0] } print(f(1))",
+      program({
+        type: "Program",
+        body: [
+          {
+            type: "FunctionDeclaration",
+            id: {type: "Identifier", name: "f"},
+            params: [{type: "Identifier", name: "a"}],
+            body: {
+              type: "BlockStatement",
+              body: [
+                {type: "ExpressionStatement", expression: {type: "AssignmentExpression", operator: "=", left: {type: "Identifier", name: "a"}, right: {type: "Literal", value: 42, raw: "42"}}},
+                {type: "ReturnStatement", argument: {type: "MemberExpression", object: {type: "Identifier", name: "arguments"}, property: {type: "Literal", value: 0, raw: "0"}, computed: true}},
+              ],
+            },
+            expression: false,
+          },
+          {
+            type: "ExpressionStatement",
+            expression: {
+              type: "CallExpression",
+              callee: {type: "Identifier", name: "print"},
+              arguments: [{type: "CallExpression", callee: {type: "Identifier", name: "f"}, arguments: [{type: "Literal", value: 1, raw: "1"}]}],
+            },
+          },
+        ],
+        sourceType: "script",
+      }),
+      { output: ["42"], error: null }],
     ["function f(){ return f.length } print(f())",
       program({
         type: "Program",
@@ -665,6 +694,35 @@ describe("function expressions and immediate invocation", () => {
         sourceType: "script",
       }),
       { output: ["iife"], error: null }],
+    ["var f = function g(){ return 1 }; print(typeof g)",
+      program({
+        type: "Program",
+        body: [
+          {
+            type: "VariableDeclaration",
+            declarations: [
+              {
+                type: "VariableDeclarator",
+                id: {type: "Identifier", name: "f"},
+                init: {
+                  type: "FunctionExpression",
+                  id: {type: "Identifier", name: "g"},
+                  params: [],
+                  body: {type: "BlockStatement", body: [{type: "ReturnStatement", argument: {type: "Literal", value: 1, raw: "1"}}]},
+                  expression: false,
+                },
+              },
+            ],
+            kind: "var",
+          },
+          {
+            type: "ExpressionStatement",
+            expression: {type: "CallExpression", callee: {type: "Identifier", name: "print"}, arguments: [{type: "UnaryExpression", operator: "typeof", prefix: true, argument: {type: "Identifier", name: "g"}}]},
+          },
+        ],
+        sourceType: "script",
+      }),
+      { output: ["undefined"], error: null }],
   ];
   it.each(cases)("%s", (_source, ast, expected) => {
     expect(evaluate(ast)).toEqual(expected);

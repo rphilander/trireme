@@ -495,6 +495,9 @@ describe("number literals and arithmetic", () => {
         sourceType: "script",
       }),
       { output: ["16"], error: null }],
+    ["print()",
+      program({type: "Program", body: [{type: "ExpressionStatement", expression: {type: "CallExpression", callee: {type: "Identifier", name: "print"}, arguments: []}}], sourceType: "script"}),
+      { output: [""], error: null }],
   ];
   it.each(cases)("%s", (_source, ast, expected) => {
     expect(evaluate(ast)).toEqual(expected);
@@ -1201,6 +1204,70 @@ describe("unary operators", () => {
         sourceType: "script",
       }),
       { output: ["false"], error: null }],
+    ["print(+\"0x10\", +\"1e2\", +\" 12 \", +\"\")",
+      program({
+        type: "Program",
+        body: [
+          {
+            type: "ExpressionStatement",
+            expression: {
+              type: "CallExpression",
+              callee: {type: "Identifier", name: "print"},
+              arguments: [
+                {type: "UnaryExpression", operator: "+", prefix: true, argument: {type: "Literal", value: "0x10", raw: "\"0x10\""}},
+                {type: "UnaryExpression", operator: "+", prefix: true, argument: {type: "Literal", value: "1e2", raw: "\"1e2\""}},
+                {type: "UnaryExpression", operator: "+", prefix: true, argument: {type: "Literal", value: " 12 ", raw: "\" 12 \""}},
+                {type: "UnaryExpression", operator: "+", prefix: true, argument: {type: "Literal", value: "", raw: "\"\""}},
+              ],
+            },
+          },
+        ],
+        sourceType: "script",
+      }),
+      { output: ["16 100 12 0"], error: null }],
+    ["print(1 << 32, 5 >>> 32)",
+      program({
+        type: "Program",
+        body: [
+          {
+            type: "ExpressionStatement",
+            expression: {
+              type: "CallExpression",
+              callee: {type: "Identifier", name: "print"},
+              arguments: [
+                {type: "BinaryExpression", left: {type: "Literal", value: 1, raw: "1"}, operator: "<<", right: {type: "Literal", value: 32, raw: "32"}},
+                {type: "BinaryExpression", left: {type: "Literal", value: 5, raw: "5"}, operator: ">>>", right: {type: "Literal", value: 32, raw: "32"}},
+              ],
+            },
+          },
+        ],
+        sourceType: "script",
+      }),
+      { output: ["1 5"], error: null }],
+    ["print(-0, 1 / -0)",
+      program({
+        type: "Program",
+        body: [
+          {
+            type: "ExpressionStatement",
+            expression: {
+              type: "CallExpression",
+              callee: {type: "Identifier", name: "print"},
+              arguments: [
+                {type: "UnaryExpression", operator: "-", prefix: true, argument: {type: "Literal", value: 0, raw: "0"}},
+                {
+                  type: "BinaryExpression",
+                  left: {type: "Literal", value: 1, raw: "1"},
+                  operator: "/",
+                  right: {type: "UnaryExpression", operator: "-", prefix: true, argument: {type: "Literal", value: 0, raw: "0"}},
+                },
+              ],
+            },
+          },
+        ],
+        sourceType: "script",
+      }),
+      { output: ["0 -Infinity"], error: null }],
   ];
   it.each(cases)("%s", (_source, ast, expected) => {
     expect(evaluate(ast)).toEqual(expected);

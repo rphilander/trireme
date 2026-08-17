@@ -717,6 +717,50 @@ describe("for-in over object keys", () => {
         sourceType: "script",
       }),
       { output: ["0,1,2"], error: null }],
+    ["var a = [10]; for (var i in a) print(i === \"0\", typeof i)",
+      program({
+        type: "Program",
+        body: [
+          {
+            type: "VariableDeclaration",
+            declarations: [{type: "VariableDeclarator", id: {type: "Identifier", name: "a"}, init: {type: "ArrayExpression", elements: [{type: "Literal", value: 10, raw: "10"}]}}],
+            kind: "var",
+          },
+          {
+            type: "ForInStatement",
+            left: {type: "VariableDeclaration", declarations: [{type: "VariableDeclarator", id: {type: "Identifier", name: "i"}, init: null}], kind: "var"},
+            right: {type: "Identifier", name: "a"},
+            body: {
+              type: "ExpressionStatement",
+              expression: {
+                type: "CallExpression",
+                callee: {type: "Identifier", name: "print"},
+                arguments: [
+                  {type: "BinaryExpression", left: {type: "Identifier", name: "i"}, operator: "===", right: {type: "Literal", value: "0", raw: "\"0\""}},
+                  {type: "UnaryExpression", operator: "typeof", prefix: true, argument: {type: "Identifier", name: "i"}},
+                ],
+              },
+            },
+          },
+        ],
+        sourceType: "script",
+      }),
+      { output: ["true string"], error: null }],
+    ["for (var k in null) print(k); print(\"done\")",
+      program({
+        type: "Program",
+        body: [
+          {
+            type: "ForInStatement",
+            left: {type: "VariableDeclaration", declarations: [{type: "VariableDeclarator", id: {type: "Identifier", name: "k"}, init: null}], kind: "var"},
+            right: {type: "Literal", value: null, raw: "null"},
+            body: {type: "ExpressionStatement", expression: {type: "CallExpression", callee: {type: "Identifier", name: "print"}, arguments: [{type: "Identifier", name: "k"}]}},
+          },
+          {type: "ExpressionStatement", expression: {type: "CallExpression", callee: {type: "Identifier", name: "print"}, arguments: [{type: "Literal", value: "done", raw: "\"done\""}]}},
+        ],
+        sourceType: "script",
+      }),
+      { output: ["done"], error: null }],
   ];
   it.each(cases)("%s", (_source, ast, expected) => {
     expect(evaluate(ast)).toEqual(expected);
@@ -874,6 +918,30 @@ describe("switch", () => {
         sourceType: "script",
       }),
       { output: ["one"], error: null }],
+    ["switch (9) { default: print(\"d\"); case 1: print(\"one\") }",
+      program({
+        type: "Program",
+        body: [
+          {
+            type: "SwitchStatement",
+            discriminant: {type: "Literal", value: 9, raw: "9"},
+            cases: [
+              {
+                type: "SwitchCase",
+                consequent: [{type: "ExpressionStatement", expression: {type: "CallExpression", callee: {type: "Identifier", name: "print"}, arguments: [{type: "Literal", value: "d", raw: "\"d\""}]}}],
+                test: null,
+              },
+              {
+                type: "SwitchCase",
+                consequent: [{type: "ExpressionStatement", expression: {type: "CallExpression", callee: {type: "Identifier", name: "print"}, arguments: [{type: "Literal", value: "one", raw: "\"one\""}]}}],
+                test: {type: "Literal", value: 1, raw: "1"},
+              },
+            ],
+          },
+        ],
+        sourceType: "script",
+      }),
+      { output: ["d", "one"], error: null }],
     ["switch (3) { case 1: case 2: case 3: print(\"low\"); break; default: print(\"high\") }",
       program({
         type: "Program",

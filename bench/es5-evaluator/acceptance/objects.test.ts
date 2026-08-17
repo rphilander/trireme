@@ -496,6 +496,83 @@ describe("object literals and property access", () => {
         sourceType: "script",
       }),
       { output: ["2"], error: null }],
+    ["var a = [0, 0]; var i = 0; a[i++] = i; print(a.join(\",\"), i)",
+      program({
+        type: "Program",
+        body: [
+          {
+            type: "VariableDeclaration",
+            declarations: [
+              {
+                type: "VariableDeclarator",
+                id: {type: "Identifier", name: "a"},
+                init: {type: "ArrayExpression", elements: [{type: "Literal", value: 0, raw: "0"}, {type: "Literal", value: 0, raw: "0"}]},
+              },
+            ],
+            kind: "var",
+          },
+          {type: "VariableDeclaration", declarations: [{type: "VariableDeclarator", id: {type: "Identifier", name: "i"}, init: {type: "Literal", value: 0, raw: "0"}}], kind: "var"},
+          {
+            type: "ExpressionStatement",
+            expression: {
+              type: "AssignmentExpression",
+              operator: "=",
+              left: {
+                type: "MemberExpression",
+                object: {type: "Identifier", name: "a"},
+                property: {type: "UpdateExpression", operator: "++", prefix: false, argument: {type: "Identifier", name: "i"}},
+                computed: true,
+              },
+              right: {type: "Identifier", name: "i"},
+            },
+          },
+          {
+            type: "ExpressionStatement",
+            expression: {
+              type: "CallExpression",
+              callee: {type: "Identifier", name: "print"},
+              arguments: [
+                {
+                  type: "CallExpression",
+                  callee: {type: "MemberExpression", object: {type: "Identifier", name: "a"}, property: {type: "Identifier", name: "join"}, computed: false},
+                  arguments: [{type: "Literal", value: ",", raw: "\",\""}],
+                },
+                {type: "Identifier", name: "i"},
+              ],
+            },
+          },
+        ],
+        sourceType: "script",
+      }),
+      { output: ["1,0 1"], error: null }],
+    ["var x = -8; x >>>= 1; print(x)",
+      program({
+        type: "Program",
+        body: [
+          {
+            type: "VariableDeclaration",
+            declarations: [{type: "VariableDeclarator", id: {type: "Identifier", name: "x"}, init: {type: "UnaryExpression", operator: "-", prefix: true, argument: {type: "Literal", value: 8, raw: "8"}}}],
+            kind: "var",
+          },
+          {type: "ExpressionStatement", expression: {type: "AssignmentExpression", operator: ">>>=", left: {type: "Identifier", name: "x"}, right: {type: "Literal", value: 1, raw: "1"}}},
+          {type: "ExpressionStatement", expression: {type: "CallExpression", callee: {type: "Identifier", name: "print"}, arguments: [{type: "Identifier", name: "x"}]}},
+        ],
+        sourceType: "script",
+      }),
+      { output: ["2147483644"], error: null }],
+    ["var x = 5; x |= 2; x ^= 3; x &= 6; print(x)",
+      program({
+        type: "Program",
+        body: [
+          {type: "VariableDeclaration", declarations: [{type: "VariableDeclarator", id: {type: "Identifier", name: "x"}, init: {type: "Literal", value: 5, raw: "5"}}], kind: "var"},
+          {type: "ExpressionStatement", expression: {type: "AssignmentExpression", operator: "|=", left: {type: "Identifier", name: "x"}, right: {type: "Literal", value: 2, raw: "2"}}},
+          {type: "ExpressionStatement", expression: {type: "AssignmentExpression", operator: "^=", left: {type: "Identifier", name: "x"}, right: {type: "Literal", value: 3, raw: "3"}}},
+          {type: "ExpressionStatement", expression: {type: "AssignmentExpression", operator: "&=", left: {type: "Identifier", name: "x"}, right: {type: "Literal", value: 6, raw: "6"}}},
+          {type: "ExpressionStatement", expression: {type: "CallExpression", callee: {type: "Identifier", name: "print"}, arguments: [{type: "Identifier", name: "x"}]}},
+        ],
+        sourceType: "script",
+      }),
+      { output: ["4"], error: null }],
   ];
   it.each(cases)("%s", (_source, ast, expected) => {
     expect(evaluate(ast)).toEqual(expected);
@@ -781,6 +858,183 @@ describe("in, hasOwnProperty and prototype chains", () => {
         sourceType: "script",
       }),
       { output: ["true"], error: null }],
+    ["var o = {a: 1}; print(o.propertyIsEnumerable(\"a\"), o.propertyIsEnumerable(\"toString\"))",
+      program({
+        type: "Program",
+        body: [
+          {
+            type: "VariableDeclaration",
+            declarations: [
+              {
+                type: "VariableDeclarator",
+                id: {type: "Identifier", name: "o"},
+                init: {type: "ObjectExpression", properties: [{type: "Property", key: {type: "Identifier", name: "a"}, value: {type: "Literal", value: 1, raw: "1"}, kind: "init"}]},
+              },
+            ],
+            kind: "var",
+          },
+          {
+            type: "ExpressionStatement",
+            expression: {
+              type: "CallExpression",
+              callee: {type: "Identifier", name: "print"},
+              arguments: [
+                {
+                  type: "CallExpression",
+                  callee: {type: "MemberExpression", object: {type: "Identifier", name: "o"}, property: {type: "Identifier", name: "propertyIsEnumerable"}, computed: false},
+                  arguments: [{type: "Literal", value: "a", raw: "\"a\""}],
+                },
+                {
+                  type: "CallExpression",
+                  callee: {type: "MemberExpression", object: {type: "Identifier", name: "o"}, property: {type: "Identifier", name: "propertyIsEnumerable"}, computed: false},
+                  arguments: [{type: "Literal", value: "toString", raw: "\"toString\""}],
+                },
+              ],
+            },
+          },
+        ],
+        sourceType: "script",
+      }),
+      { output: ["true false"], error: null }],
+    ["var proto = {}; function C(){} C.prototype = proto; print(proto.isPrototypeOf(new C()))",
+      program({
+        type: "Program",
+        body: [
+          {type: "VariableDeclaration", declarations: [{type: "VariableDeclarator", id: {type: "Identifier", name: "proto"}, init: {type: "ObjectExpression", properties: []}}], kind: "var"},
+          {type: "FunctionDeclaration", id: {type: "Identifier", name: "C"}, params: [], body: {type: "BlockStatement", body: []}, expression: false},
+          {
+            type: "ExpressionStatement",
+            expression: {
+              type: "AssignmentExpression",
+              operator: "=",
+              left: {type: "MemberExpression", object: {type: "Identifier", name: "C"}, property: {type: "Identifier", name: "prototype"}, computed: false},
+              right: {type: "Identifier", name: "proto"},
+            },
+          },
+          {
+            type: "ExpressionStatement",
+            expression: {
+              type: "CallExpression",
+              callee: {type: "Identifier", name: "print"},
+              arguments: [
+                {
+                  type: "CallExpression",
+                  callee: {type: "MemberExpression", object: {type: "Identifier", name: "proto"}, property: {type: "Identifier", name: "isPrototypeOf"}, computed: false},
+                  arguments: [{type: "NewExpression", callee: {type: "Identifier", name: "C"}, arguments: []}],
+                },
+              ],
+            },
+          },
+        ],
+        sourceType: "script",
+      }),
+      { output: ["true"], error: null }],
+    ["var o = { valueOf: function(){ return 7 } }; print(o + 1, o + \"\", o * 2, o == 7)",
+      program({
+        type: "Program",
+        body: [
+          {
+            type: "VariableDeclaration",
+            declarations: [
+              {
+                type: "VariableDeclarator",
+                id: {type: "Identifier", name: "o"},
+                init: {
+                  type: "ObjectExpression",
+                  properties: [
+                    {
+                      type: "Property",
+                      key: {type: "Identifier", name: "valueOf"},
+                      value: {
+                        type: "FunctionExpression",
+                        id: null,
+                        params: [],
+                        body: {type: "BlockStatement", body: [{type: "ReturnStatement", argument: {type: "Literal", value: 7, raw: "7"}}]},
+                        expression: false,
+                      },
+                      kind: "init",
+                    },
+                  ],
+                },
+              },
+            ],
+            kind: "var",
+          },
+          {
+            type: "ExpressionStatement",
+            expression: {
+              type: "CallExpression",
+              callee: {type: "Identifier", name: "print"},
+              arguments: [
+                {type: "BinaryExpression", left: {type: "Identifier", name: "o"}, operator: "+", right: {type: "Literal", value: 1, raw: "1"}},
+                {type: "BinaryExpression", left: {type: "Identifier", name: "o"}, operator: "+", right: {type: "Literal", value: "", raw: "\"\""}},
+                {type: "BinaryExpression", left: {type: "Identifier", name: "o"}, operator: "*", right: {type: "Literal", value: 2, raw: "2"}},
+                {type: "BinaryExpression", left: {type: "Identifier", name: "o"}, operator: "==", right: {type: "Literal", value: 7, raw: "7"}},
+              ],
+            },
+          },
+        ],
+        sourceType: "script",
+      }),
+      { output: ["8 7 14 true"], error: null }],
+    ["var o = { toString: function(){ return \"T\" }, valueOf: function(){ return 9 } }; print(String(o), o + \"\")",
+      program({
+        type: "Program",
+        body: [
+          {
+            type: "VariableDeclaration",
+            declarations: [
+              {
+                type: "VariableDeclarator",
+                id: {type: "Identifier", name: "o"},
+                init: {
+                  type: "ObjectExpression",
+                  properties: [
+                    {
+                      type: "Property",
+                      key: {type: "Identifier", name: "toString"},
+                      value: {
+                        type: "FunctionExpression",
+                        id: null,
+                        params: [],
+                        body: {type: "BlockStatement", body: [{type: "ReturnStatement", argument: {type: "Literal", value: "T", raw: "\"T\""}}]},
+                        expression: false,
+                      },
+                      kind: "init",
+                    },
+                    {
+                      type: "Property",
+                      key: {type: "Identifier", name: "valueOf"},
+                      value: {
+                        type: "FunctionExpression",
+                        id: null,
+                        params: [],
+                        body: {type: "BlockStatement", body: [{type: "ReturnStatement", argument: {type: "Literal", value: 9, raw: "9"}}]},
+                        expression: false,
+                      },
+                      kind: "init",
+                    },
+                  ],
+                },
+              },
+            ],
+            kind: "var",
+          },
+          {
+            type: "ExpressionStatement",
+            expression: {
+              type: "CallExpression",
+              callee: {type: "Identifier", name: "print"},
+              arguments: [
+                {type: "CallExpression", callee: {type: "Identifier", name: "String"}, arguments: [{type: "Identifier", name: "o"}]},
+                {type: "BinaryExpression", left: {type: "Identifier", name: "o"}, operator: "+", right: {type: "Literal", value: "", raw: "\"\""}},
+              ],
+            },
+          },
+        ],
+        sourceType: "script",
+      }),
+      { output: ["T 9"], error: null }],
     ["print(Object.prototype.toString.call([]))",
       program({
         type: "Program",
@@ -924,770 +1178,6 @@ describe("in, hasOwnProperty and prototype chains", () => {
         sourceType: "script",
       }),
       { output: ["true"], error: null }],
-  ];
-  it.each(cases)("%s", (_source, ast, expected) => {
-    expect(evaluate(ast)).toEqual(expected);
-  });
-});
-
-describe("constructors and new", () => {
-  const cases: Array<[string, Program, { output: string[]; error: string | null }]> = [
-    ["function Point(x, y){ this.x = x; this.y = y } var p = new Point(3, 4); print(p.x, p.y)",
-      program({
-        type: "Program",
-        body: [
-          {
-            type: "FunctionDeclaration",
-            id: {type: "Identifier", name: "Point"},
-            params: [{type: "Identifier", name: "x"}, {type: "Identifier", name: "y"}],
-            body: {
-              type: "BlockStatement",
-              body: [
-                {
-                  type: "ExpressionStatement",
-                  expression: {
-                    type: "AssignmentExpression",
-                    operator: "=",
-                    left: {type: "MemberExpression", object: {type: "ThisExpression"}, property: {type: "Identifier", name: "x"}, computed: false},
-                    right: {type: "Identifier", name: "x"},
-                  },
-                },
-                {
-                  type: "ExpressionStatement",
-                  expression: {
-                    type: "AssignmentExpression",
-                    operator: "=",
-                    left: {type: "MemberExpression", object: {type: "ThisExpression"}, property: {type: "Identifier", name: "y"}, computed: false},
-                    right: {type: "Identifier", name: "y"},
-                  },
-                },
-              ],
-            },
-            expression: false,
-          },
-          {
-            type: "VariableDeclaration",
-            declarations: [
-              {
-                type: "VariableDeclarator",
-                id: {type: "Identifier", name: "p"},
-                init: {type: "NewExpression", callee: {type: "Identifier", name: "Point"}, arguments: [{type: "Literal", value: 3, raw: "3"}, {type: "Literal", value: 4, raw: "4"}]},
-              },
-            ],
-            kind: "var",
-          },
-          {
-            type: "ExpressionStatement",
-            expression: {
-              type: "CallExpression",
-              callee: {type: "Identifier", name: "print"},
-              arguments: [
-                {type: "MemberExpression", object: {type: "Identifier", name: "p"}, property: {type: "Identifier", name: "x"}, computed: false},
-                {type: "MemberExpression", object: {type: "Identifier", name: "p"}, property: {type: "Identifier", name: "y"}, computed: false},
-              ],
-            },
-          },
-        ],
-        sourceType: "script",
-      }),
-      { output: ["3 4"], error: null }],
-    ["function Point(x, y){ this.x = x; this.y = y } Point.prototype.dist = function(){ return Math.sqrt(this.x*this.x + this.y*this.y) }; print(new Point(3, 4).dist())",
-      program({
-        type: "Program",
-        body: [
-          {
-            type: "FunctionDeclaration",
-            id: {type: "Identifier", name: "Point"},
-            params: [{type: "Identifier", name: "x"}, {type: "Identifier", name: "y"}],
-            body: {
-              type: "BlockStatement",
-              body: [
-                {
-                  type: "ExpressionStatement",
-                  expression: {
-                    type: "AssignmentExpression",
-                    operator: "=",
-                    left: {type: "MemberExpression", object: {type: "ThisExpression"}, property: {type: "Identifier", name: "x"}, computed: false},
-                    right: {type: "Identifier", name: "x"},
-                  },
-                },
-                {
-                  type: "ExpressionStatement",
-                  expression: {
-                    type: "AssignmentExpression",
-                    operator: "=",
-                    left: {type: "MemberExpression", object: {type: "ThisExpression"}, property: {type: "Identifier", name: "y"}, computed: false},
-                    right: {type: "Identifier", name: "y"},
-                  },
-                },
-              ],
-            },
-            expression: false,
-          },
-          {
-            type: "ExpressionStatement",
-            expression: {
-              type: "AssignmentExpression",
-              operator: "=",
-              left: {
-                type: "MemberExpression",
-                object: {type: "MemberExpression", object: {type: "Identifier", name: "Point"}, property: {type: "Identifier", name: "prototype"}, computed: false},
-                property: {type: "Identifier", name: "dist"},
-                computed: false,
-              },
-              right: {
-                type: "FunctionExpression",
-                id: null,
-                params: [],
-                body: {
-                  type: "BlockStatement",
-                  body: [
-                    {
-                      type: "ReturnStatement",
-                      argument: {
-                        type: "CallExpression",
-                        callee: {type: "MemberExpression", object: {type: "Identifier", name: "Math"}, property: {type: "Identifier", name: "sqrt"}, computed: false},
-                        arguments: [
-                          {
-                            type: "BinaryExpression",
-                            left: {
-                              type: "BinaryExpression",
-                              left: {type: "MemberExpression", object: {type: "ThisExpression"}, property: {type: "Identifier", name: "x"}, computed: false},
-                              operator: "*",
-                              right: {type: "MemberExpression", object: {type: "ThisExpression"}, property: {type: "Identifier", name: "x"}, computed: false},
-                            },
-                            operator: "+",
-                            right: {
-                              type: "BinaryExpression",
-                              left: {type: "MemberExpression", object: {type: "ThisExpression"}, property: {type: "Identifier", name: "y"}, computed: false},
-                              operator: "*",
-                              right: {type: "MemberExpression", object: {type: "ThisExpression"}, property: {type: "Identifier", name: "y"}, computed: false},
-                            },
-                          },
-                        ],
-                      },
-                    },
-                  ],
-                },
-                expression: false,
-              },
-            },
-          },
-          {
-            type: "ExpressionStatement",
-            expression: {
-              type: "CallExpression",
-              callee: {type: "Identifier", name: "print"},
-              arguments: [
-                {
-                  type: "CallExpression",
-                  callee: {
-                    type: "MemberExpression",
-                    object: {type: "NewExpression", callee: {type: "Identifier", name: "Point"}, arguments: [{type: "Literal", value: 3, raw: "3"}, {type: "Literal", value: 4, raw: "4"}]},
-                    property: {type: "Identifier", name: "dist"},
-                    computed: false,
-                  },
-                  arguments: [],
-                },
-              ],
-            },
-          },
-        ],
-        sourceType: "script",
-      }),
-      { output: ["5"], error: null }],
-    ["function C(){ this.v = 1 } var o = new C(); print(o instanceof C, o instanceof Object)",
-      program({
-        type: "Program",
-        body: [
-          {
-            type: "FunctionDeclaration",
-            id: {type: "Identifier", name: "C"},
-            params: [],
-            body: {
-              type: "BlockStatement",
-              body: [
-                {
-                  type: "ExpressionStatement",
-                  expression: {
-                    type: "AssignmentExpression",
-                    operator: "=",
-                    left: {type: "MemberExpression", object: {type: "ThisExpression"}, property: {type: "Identifier", name: "v"}, computed: false},
-                    right: {type: "Literal", value: 1, raw: "1"},
-                  },
-                },
-              ],
-            },
-            expression: false,
-          },
-          {
-            type: "VariableDeclaration",
-            declarations: [{type: "VariableDeclarator", id: {type: "Identifier", name: "o"}, init: {type: "NewExpression", callee: {type: "Identifier", name: "C"}, arguments: []}}],
-            kind: "var",
-          },
-          {
-            type: "ExpressionStatement",
-            expression: {
-              type: "CallExpression",
-              callee: {type: "Identifier", name: "print"},
-              arguments: [
-                {type: "BinaryExpression", left: {type: "Identifier", name: "o"}, operator: "instanceof", right: {type: "Identifier", name: "C"}},
-                {type: "BinaryExpression", left: {type: "Identifier", name: "o"}, operator: "instanceof", right: {type: "Identifier", name: "Object"}},
-              ],
-            },
-          },
-        ],
-        sourceType: "script",
-      }),
-      { output: ["true true"], error: null }],
-    ["function C(){ return 5 } print(typeof new C())",
-      program({
-        type: "Program",
-        body: [
-          {
-            type: "FunctionDeclaration",
-            id: {type: "Identifier", name: "C"},
-            params: [],
-            body: {type: "BlockStatement", body: [{type: "ReturnStatement", argument: {type: "Literal", value: 5, raw: "5"}}]},
-            expression: false,
-          },
-          {
-            type: "ExpressionStatement",
-            expression: {
-              type: "CallExpression",
-              callee: {type: "Identifier", name: "print"},
-              arguments: [{type: "UnaryExpression", operator: "typeof", prefix: true, argument: {type: "NewExpression", callee: {type: "Identifier", name: "C"}, arguments: []}}],
-            },
-          },
-        ],
-        sourceType: "script",
-      }),
-      { output: ["object"], error: null }],
-    ["function C(){ this.a = 1; return {b: 2} } print(new C().a, new C().b)",
-      program({
-        type: "Program",
-        body: [
-          {
-            type: "FunctionDeclaration",
-            id: {type: "Identifier", name: "C"},
-            params: [],
-            body: {
-              type: "BlockStatement",
-              body: [
-                {
-                  type: "ExpressionStatement",
-                  expression: {
-                    type: "AssignmentExpression",
-                    operator: "=",
-                    left: {type: "MemberExpression", object: {type: "ThisExpression"}, property: {type: "Identifier", name: "a"}, computed: false},
-                    right: {type: "Literal", value: 1, raw: "1"},
-                  },
-                },
-                {
-                  type: "ReturnStatement",
-                  argument: {type: "ObjectExpression", properties: [{type: "Property", key: {type: "Identifier", name: "b"}, value: {type: "Literal", value: 2, raw: "2"}, kind: "init"}]},
-                },
-              ],
-            },
-            expression: false,
-          },
-          {
-            type: "ExpressionStatement",
-            expression: {
-              type: "CallExpression",
-              callee: {type: "Identifier", name: "print"},
-              arguments: [
-                {type: "MemberExpression", object: {type: "NewExpression", callee: {type: "Identifier", name: "C"}, arguments: []}, property: {type: "Identifier", name: "a"}, computed: false},
-                {type: "MemberExpression", object: {type: "NewExpression", callee: {type: "Identifier", name: "C"}, arguments: []}, property: {type: "Identifier", name: "b"}, computed: false},
-              ],
-            },
-          },
-        ],
-        sourceType: "script",
-      }),
-      { output: ["undefined 2"], error: null }],
-    ["function C(){} print(new C().constructor === C)",
-      program({
-        type: "Program",
-        body: [
-          {type: "FunctionDeclaration", id: {type: "Identifier", name: "C"}, params: [], body: {type: "BlockStatement", body: []}, expression: false},
-          {
-            type: "ExpressionStatement",
-            expression: {
-              type: "CallExpression",
-              callee: {type: "Identifier", name: "print"},
-              arguments: [
-                {
-                  type: "BinaryExpression",
-                  left: {
-                    type: "MemberExpression",
-                    object: {type: "NewExpression", callee: {type: "Identifier", name: "C"}, arguments: []},
-                    property: {type: "Identifier", name: "constructor"},
-                    computed: false,
-                  },
-                  operator: "===",
-                  right: {type: "Identifier", name: "C"},
-                },
-              ],
-            },
-          },
-        ],
-        sourceType: "script",
-      }),
-      { output: ["true"], error: null }],
-    ["function Stack(){ this.items = [] } Stack.prototype.push = function(x){ this.items.push(x); return this }; Stack.prototype.size = function(){ return this.items.length }; var s = new Stack(); s.push(1).push(2).push(3); print(s.size())",
-      program({
-        type: "Program",
-        body: [
-          {
-            type: "FunctionDeclaration",
-            id: {type: "Identifier", name: "Stack"},
-            params: [],
-            body: {
-              type: "BlockStatement",
-              body: [
-                {
-                  type: "ExpressionStatement",
-                  expression: {
-                    type: "AssignmentExpression",
-                    operator: "=",
-                    left: {type: "MemberExpression", object: {type: "ThisExpression"}, property: {type: "Identifier", name: "items"}, computed: false},
-                    right: {type: "ArrayExpression", elements: []},
-                  },
-                },
-              ],
-            },
-            expression: false,
-          },
-          {
-            type: "ExpressionStatement",
-            expression: {
-              type: "AssignmentExpression",
-              operator: "=",
-              left: {
-                type: "MemberExpression",
-                object: {type: "MemberExpression", object: {type: "Identifier", name: "Stack"}, property: {type: "Identifier", name: "prototype"}, computed: false},
-                property: {type: "Identifier", name: "push"},
-                computed: false,
-              },
-              right: {
-                type: "FunctionExpression",
-                id: null,
-                params: [{type: "Identifier", name: "x"}],
-                body: {
-                  type: "BlockStatement",
-                  body: [
-                    {
-                      type: "ExpressionStatement",
-                      expression: {
-                        type: "CallExpression",
-                        callee: {
-                          type: "MemberExpression",
-                          object: {type: "MemberExpression", object: {type: "ThisExpression"}, property: {type: "Identifier", name: "items"}, computed: false},
-                          property: {type: "Identifier", name: "push"},
-                          computed: false,
-                        },
-                        arguments: [{type: "Identifier", name: "x"}],
-                      },
-                    },
-                    {type: "ReturnStatement", argument: {type: "ThisExpression"}},
-                  ],
-                },
-                expression: false,
-              },
-            },
-          },
-          {
-            type: "ExpressionStatement",
-            expression: {
-              type: "AssignmentExpression",
-              operator: "=",
-              left: {
-                type: "MemberExpression",
-                object: {type: "MemberExpression", object: {type: "Identifier", name: "Stack"}, property: {type: "Identifier", name: "prototype"}, computed: false},
-                property: {type: "Identifier", name: "size"},
-                computed: false,
-              },
-              right: {
-                type: "FunctionExpression",
-                id: null,
-                params: [],
-                body: {
-                  type: "BlockStatement",
-                  body: [
-                    {
-                      type: "ReturnStatement",
-                      argument: {
-                        type: "MemberExpression",
-                        object: {type: "MemberExpression", object: {type: "ThisExpression"}, property: {type: "Identifier", name: "items"}, computed: false},
-                        property: {type: "Identifier", name: "length"},
-                        computed: false,
-                      },
-                    },
-                  ],
-                },
-                expression: false,
-              },
-            },
-          },
-          {
-            type: "VariableDeclaration",
-            declarations: [{type: "VariableDeclarator", id: {type: "Identifier", name: "s"}, init: {type: "NewExpression", callee: {type: "Identifier", name: "Stack"}, arguments: []}}],
-            kind: "var",
-          },
-          {
-            type: "ExpressionStatement",
-            expression: {
-              type: "CallExpression",
-              callee: {
-                type: "MemberExpression",
-                object: {
-                  type: "CallExpression",
-                  callee: {
-                    type: "MemberExpression",
-                    object: {
-                      type: "CallExpression",
-                      callee: {type: "MemberExpression", object: {type: "Identifier", name: "s"}, property: {type: "Identifier", name: "push"}, computed: false},
-                      arguments: [{type: "Literal", value: 1, raw: "1"}],
-                    },
-                    property: {type: "Identifier", name: "push"},
-                    computed: false,
-                  },
-                  arguments: [{type: "Literal", value: 2, raw: "2"}],
-                },
-                property: {type: "Identifier", name: "push"},
-                computed: false,
-              },
-              arguments: [{type: "Literal", value: 3, raw: "3"}],
-            },
-          },
-          {
-            type: "ExpressionStatement",
-            expression: {
-              type: "CallExpression",
-              callee: {type: "Identifier", name: "print"},
-              arguments: [{type: "CallExpression", callee: {type: "MemberExpression", object: {type: "Identifier", name: "s"}, property: {type: "Identifier", name: "size"}, computed: false}, arguments: []}],
-            },
-          },
-        ],
-        sourceType: "script",
-      }),
-      { output: ["3"], error: null }],
-    ["function Base(n){ this.n = n } function Derived(n){ Base.call(this, n) } Derived.prototype = new Base(); var d = new Derived(7); print(d.n)",
-      program({
-        type: "Program",
-        body: [
-          {
-            type: "FunctionDeclaration",
-            id: {type: "Identifier", name: "Base"},
-            params: [{type: "Identifier", name: "n"}],
-            body: {
-              type: "BlockStatement",
-              body: [
-                {
-                  type: "ExpressionStatement",
-                  expression: {
-                    type: "AssignmentExpression",
-                    operator: "=",
-                    left: {type: "MemberExpression", object: {type: "ThisExpression"}, property: {type: "Identifier", name: "n"}, computed: false},
-                    right: {type: "Identifier", name: "n"},
-                  },
-                },
-              ],
-            },
-            expression: false,
-          },
-          {
-            type: "FunctionDeclaration",
-            id: {type: "Identifier", name: "Derived"},
-            params: [{type: "Identifier", name: "n"}],
-            body: {
-              type: "BlockStatement",
-              body: [
-                {
-                  type: "ExpressionStatement",
-                  expression: {
-                    type: "CallExpression",
-                    callee: {type: "MemberExpression", object: {type: "Identifier", name: "Base"}, property: {type: "Identifier", name: "call"}, computed: false},
-                    arguments: [{type: "ThisExpression"}, {type: "Identifier", name: "n"}],
-                  },
-                },
-              ],
-            },
-            expression: false,
-          },
-          {
-            type: "ExpressionStatement",
-            expression: {
-              type: "AssignmentExpression",
-              operator: "=",
-              left: {type: "MemberExpression", object: {type: "Identifier", name: "Derived"}, property: {type: "Identifier", name: "prototype"}, computed: false},
-              right: {type: "NewExpression", callee: {type: "Identifier", name: "Base"}, arguments: []},
-            },
-          },
-          {
-            type: "VariableDeclaration",
-            declarations: [
-              {
-                type: "VariableDeclarator",
-                id: {type: "Identifier", name: "d"},
-                init: {type: "NewExpression", callee: {type: "Identifier", name: "Derived"}, arguments: [{type: "Literal", value: 7, raw: "7"}]},
-              },
-            ],
-            kind: "var",
-          },
-          {
-            type: "ExpressionStatement",
-            expression: {
-              type: "CallExpression",
-              callee: {type: "Identifier", name: "print"},
-              arguments: [{type: "MemberExpression", object: {type: "Identifier", name: "d"}, property: {type: "Identifier", name: "n"}, computed: false}],
-            },
-          },
-        ],
-        sourceType: "script",
-      }),
-      { output: ["7"], error: null }],
-  ];
-  it.each(cases)("%s", (_source, ast, expected) => {
-    expect(evaluate(ast)).toEqual(expected);
-  });
-});
-
-describe("getters, setters and accessor semantics", () => {
-  const cases: Array<[string, Program, { output: string[]; error: string | null }]> = [
-    ["var o = { _n: 1, get n(){ return this._n }, set n(v){ this._n = v * 2 } }; o.n = 5; print(o.n)",
-      program({
-        type: "Program",
-        body: [
-          {
-            type: "VariableDeclaration",
-            declarations: [
-              {
-                type: "VariableDeclarator",
-                id: {type: "Identifier", name: "o"},
-                init: {
-                  type: "ObjectExpression",
-                  properties: [
-                    {type: "Property", key: {type: "Identifier", name: "_n"}, value: {type: "Literal", value: 1, raw: "1"}, kind: "init"},
-                    {
-                      type: "Property",
-                      key: {type: "Identifier", name: "n"},
-                      value: {
-                        type: "FunctionExpression",
-                        id: null,
-                        params: [],
-                        body: {
-                          type: "BlockStatement",
-                          body: [{type: "ReturnStatement", argument: {type: "MemberExpression", object: {type: "ThisExpression"}, property: {type: "Identifier", name: "_n"}, computed: false}}],
-                        },
-                        expression: false,
-                      },
-                      kind: "get",
-                    },
-                    {
-                      type: "Property",
-                      key: {type: "Identifier", name: "n"},
-                      value: {
-                        type: "FunctionExpression",
-                        id: null,
-                        params: [{type: "Identifier", name: "v"}],
-                        body: {
-                          type: "BlockStatement",
-                          body: [
-                            {
-                              type: "ExpressionStatement",
-                              expression: {
-                                type: "AssignmentExpression",
-                                operator: "=",
-                                left: {type: "MemberExpression", object: {type: "ThisExpression"}, property: {type: "Identifier", name: "_n"}, computed: false},
-                                right: {type: "BinaryExpression", left: {type: "Identifier", name: "v"}, operator: "*", right: {type: "Literal", value: 2, raw: "2"}},
-                              },
-                            },
-                          ],
-                        },
-                        expression: false,
-                      },
-                      kind: "set",
-                    },
-                  ],
-                },
-              },
-            ],
-            kind: "var",
-          },
-          {
-            type: "ExpressionStatement",
-            expression: {
-              type: "AssignmentExpression",
-              operator: "=",
-              left: {type: "MemberExpression", object: {type: "Identifier", name: "o"}, property: {type: "Identifier", name: "n"}, computed: false},
-              right: {type: "Literal", value: 5, raw: "5"},
-            },
-          },
-          {
-            type: "ExpressionStatement",
-            expression: {
-              type: "CallExpression",
-              callee: {type: "Identifier", name: "print"},
-              arguments: [{type: "MemberExpression", object: {type: "Identifier", name: "o"}, property: {type: "Identifier", name: "n"}, computed: false}],
-            },
-          },
-        ],
-        sourceType: "script",
-      }),
-      { output: ["10"], error: null }],
-    ["var o = { get x(){ return 42 } }; print(o.x)",
-      program({
-        type: "Program",
-        body: [
-          {
-            type: "VariableDeclaration",
-            declarations: [
-              {
-                type: "VariableDeclarator",
-                id: {type: "Identifier", name: "o"},
-                init: {
-                  type: "ObjectExpression",
-                  properties: [
-                    {
-                      type: "Property",
-                      key: {type: "Identifier", name: "x"},
-                      value: {
-                        type: "FunctionExpression",
-                        id: null,
-                        params: [],
-                        body: {type: "BlockStatement", body: [{type: "ReturnStatement", argument: {type: "Literal", value: 42, raw: "42"}}]},
-                        expression: false,
-                      },
-                      kind: "get",
-                    },
-                  ],
-                },
-              },
-            ],
-            kind: "var",
-          },
-          {
-            type: "ExpressionStatement",
-            expression: {
-              type: "CallExpression",
-              callee: {type: "Identifier", name: "print"},
-              arguments: [{type: "MemberExpression", object: {type: "Identifier", name: "o"}, property: {type: "Identifier", name: "x"}, computed: false}],
-            },
-          },
-        ],
-        sourceType: "script",
-      }),
-      { output: ["42"], error: null }],
-    ["var calls = 0; var o = { get x(){ calls++; return 1 } }; o.x; o.x; print(calls)",
-      program({
-        type: "Program",
-        body: [
-          {type: "VariableDeclaration", declarations: [{type: "VariableDeclarator", id: {type: "Identifier", name: "calls"}, init: {type: "Literal", value: 0, raw: "0"}}], kind: "var"},
-          {
-            type: "VariableDeclaration",
-            declarations: [
-              {
-                type: "VariableDeclarator",
-                id: {type: "Identifier", name: "o"},
-                init: {
-                  type: "ObjectExpression",
-                  properties: [
-                    {
-                      type: "Property",
-                      key: {type: "Identifier", name: "x"},
-                      value: {
-                        type: "FunctionExpression",
-                        id: null,
-                        params: [],
-                        body: {
-                          type: "BlockStatement",
-                          body: [
-                            {type: "ExpressionStatement", expression: {type: "UpdateExpression", operator: "++", prefix: false, argument: {type: "Identifier", name: "calls"}}},
-                            {type: "ReturnStatement", argument: {type: "Literal", value: 1, raw: "1"}},
-                          ],
-                        },
-                        expression: false,
-                      },
-                      kind: "get",
-                    },
-                  ],
-                },
-              },
-            ],
-            kind: "var",
-          },
-          {type: "ExpressionStatement", expression: {type: "MemberExpression", object: {type: "Identifier", name: "o"}, property: {type: "Identifier", name: "x"}, computed: false}},
-          {type: "ExpressionStatement", expression: {type: "MemberExpression", object: {type: "Identifier", name: "o"}, property: {type: "Identifier", name: "x"}, computed: false}},
-          {type: "ExpressionStatement", expression: {type: "CallExpression", callee: {type: "Identifier", name: "print"}, arguments: [{type: "Identifier", name: "calls"}]}},
-        ],
-        sourceType: "script",
-      }),
-      { output: ["2"], error: null }],
-    ["var o = { first: \"a\", last: \"b\", get full(){ return this.first + \" \" + this.last } }; print(o.full)",
-      program({
-        type: "Program",
-        body: [
-          {
-            type: "VariableDeclaration",
-            declarations: [
-              {
-                type: "VariableDeclarator",
-                id: {type: "Identifier", name: "o"},
-                init: {
-                  type: "ObjectExpression",
-                  properties: [
-                    {type: "Property", key: {type: "Identifier", name: "first"}, value: {type: "Literal", value: "a", raw: "\"a\""}, kind: "init"},
-                    {type: "Property", key: {type: "Identifier", name: "last"}, value: {type: "Literal", value: "b", raw: "\"b\""}, kind: "init"},
-                    {
-                      type: "Property",
-                      key: {type: "Identifier", name: "full"},
-                      value: {
-                        type: "FunctionExpression",
-                        id: null,
-                        params: [],
-                        body: {
-                          type: "BlockStatement",
-                          body: [
-                            {
-                              type: "ReturnStatement",
-                              argument: {
-                                type: "BinaryExpression",
-                                left: {
-                                  type: "BinaryExpression",
-                                  left: {type: "MemberExpression", object: {type: "ThisExpression"}, property: {type: "Identifier", name: "first"}, computed: false},
-                                  operator: "+",
-                                  right: {type: "Literal", value: " ", raw: "\" \""},
-                                },
-                                operator: "+",
-                                right: {type: "MemberExpression", object: {type: "ThisExpression"}, property: {type: "Identifier", name: "last"}, computed: false},
-                              },
-                            },
-                          ],
-                        },
-                        expression: false,
-                      },
-                      kind: "get",
-                    },
-                  ],
-                },
-              },
-            ],
-            kind: "var",
-          },
-          {
-            type: "ExpressionStatement",
-            expression: {
-              type: "CallExpression",
-              callee: {type: "Identifier", name: "print"},
-              arguments: [{type: "MemberExpression", object: {type: "Identifier", name: "o"}, property: {type: "Identifier", name: "full"}, computed: false}],
-            },
-          },
-        ],
-        sourceType: "script",
-      }),
-      { output: ["a b"], error: null }],
   ];
   it.each(cases)("%s", (_source, ast, expected) => {
     expect(evaluate(ast)).toEqual(expected);

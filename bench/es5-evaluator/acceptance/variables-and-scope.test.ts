@@ -247,6 +247,73 @@ describe("var declarations and assignment", () => {
         sourceType: "script",
       }),
       { output: ["2"], error: null }],
+    ["var x = 1; var x; print(x)",
+      program({
+        type: "Program",
+        body: [
+          {type: "VariableDeclaration", declarations: [{type: "VariableDeclarator", id: {type: "Identifier", name: "x"}, init: {type: "Literal", value: 1, raw: "1"}}], kind: "var"},
+          {type: "VariableDeclaration", declarations: [{type: "VariableDeclarator", id: {type: "Identifier", name: "x"}, init: null}], kind: "var"},
+          {type: "ExpressionStatement", expression: {type: "CallExpression", callee: {type: "Identifier", name: "print"}, arguments: [{type: "Identifier", name: "x"}]}},
+        ],
+        sourceType: "script",
+      }),
+      { output: ["1"], error: null }],
+    ["var x = \"5\"; x++; print(x, typeof x)",
+      program({
+        type: "Program",
+        body: [
+          {type: "VariableDeclaration", declarations: [{type: "VariableDeclarator", id: {type: "Identifier", name: "x"}, init: {type: "Literal", value: "5", raw: "\"5\""}}], kind: "var"},
+          {type: "ExpressionStatement", expression: {type: "UpdateExpression", operator: "++", prefix: false, argument: {type: "Identifier", name: "x"}}},
+          {
+            type: "ExpressionStatement",
+            expression: {
+              type: "CallExpression",
+              callee: {type: "Identifier", name: "print"},
+              arguments: [{type: "Identifier", name: "x"}, {type: "UnaryExpression", operator: "typeof", prefix: true, argument: {type: "Identifier", name: "x"}}],
+            },
+          },
+        ],
+        sourceType: "script",
+      }),
+      { output: ["6 number"], error: null }],
+    ["var t = \"outer\"; function f(){ if (true) { var t = \"inner\" } return t } f(); print(t)",
+      program({
+        type: "Program",
+        body: [
+          {type: "VariableDeclaration", declarations: [{type: "VariableDeclarator", id: {type: "Identifier", name: "t"}, init: {type: "Literal", value: "outer", raw: "\"outer\""}}], kind: "var"},
+          {
+            type: "FunctionDeclaration",
+            id: {type: "Identifier", name: "f"},
+            params: [],
+            body: {
+              type: "BlockStatement",
+              body: [
+                {
+                  type: "IfStatement",
+                  test: {type: "Literal", value: true, raw: "true"},
+                  consequent: {
+                    type: "BlockStatement",
+                    body: [
+                      {
+                        type: "VariableDeclaration",
+                        declarations: [{type: "VariableDeclarator", id: {type: "Identifier", name: "t"}, init: {type: "Literal", value: "inner", raw: "\"inner\""}}],
+                        kind: "var",
+                      },
+                    ],
+                  },
+                  alternate: null,
+                },
+                {type: "ReturnStatement", argument: {type: "Identifier", name: "t"}},
+              ],
+            },
+            expression: false,
+          },
+          {type: "ExpressionStatement", expression: {type: "CallExpression", callee: {type: "Identifier", name: "f"}, arguments: []}},
+          {type: "ExpressionStatement", expression: {type: "CallExpression", callee: {type: "Identifier", name: "print"}, arguments: [{type: "Identifier", name: "t"}]}},
+        ],
+        sourceType: "script",
+      }),
+      { output: ["outer"], error: null }],
   ];
   it.each(cases)("%s", (_source, ast, expected) => {
     expect(evaluate(ast)).toEqual(expected);
@@ -713,6 +780,41 @@ describe("function scope and closures", () => {
         sourceType: "script",
       }),
       { output: ["2"], error: null }],
+    ["var f = []; for (var i = 0; i < 3; i++) f.push(function(){ return i }); print(f[0](), f[1](), f[2]())",
+      program({
+        type: "Program",
+        body: [
+          {type: "VariableDeclaration", declarations: [{type: "VariableDeclarator", id: {type: "Identifier", name: "f"}, init: {type: "ArrayExpression", elements: []}}], kind: "var"},
+          {
+            type: "ForStatement",
+            init: {type: "VariableDeclaration", declarations: [{type: "VariableDeclarator", id: {type: "Identifier", name: "i"}, init: {type: "Literal", value: 0, raw: "0"}}], kind: "var"},
+            test: {type: "BinaryExpression", left: {type: "Identifier", name: "i"}, operator: "<", right: {type: "Literal", value: 3, raw: "3"}},
+            update: {type: "UpdateExpression", operator: "++", prefix: false, argument: {type: "Identifier", name: "i"}},
+            body: {
+              type: "ExpressionStatement",
+              expression: {
+                type: "CallExpression",
+                callee: {type: "MemberExpression", object: {type: "Identifier", name: "f"}, property: {type: "Identifier", name: "push"}, computed: false},
+                arguments: [{type: "FunctionExpression", id: null, params: [], body: {type: "BlockStatement", body: [{type: "ReturnStatement", argument: {type: "Identifier", name: "i"}}]}, expression: false}],
+              },
+            },
+          },
+          {
+            type: "ExpressionStatement",
+            expression: {
+              type: "CallExpression",
+              callee: {type: "Identifier", name: "print"},
+              arguments: [
+                {type: "CallExpression", callee: {type: "MemberExpression", object: {type: "Identifier", name: "f"}, property: {type: "Literal", value: 0, raw: "0"}, computed: true}, arguments: []},
+                {type: "CallExpression", callee: {type: "MemberExpression", object: {type: "Identifier", name: "f"}, property: {type: "Literal", value: 1, raw: "1"}, computed: true}, arguments: []},
+                {type: "CallExpression", callee: {type: "MemberExpression", object: {type: "Identifier", name: "f"}, property: {type: "Literal", value: 2, raw: "2"}, computed: true}, arguments: []},
+              ],
+            },
+          },
+        ],
+        sourceType: "script",
+      }),
+      { output: ["3 3 3"], error: null }],
   ];
   it.each(cases)("%s", (_source, ast, expected) => {
     expect(evaluate(ast)).toEqual(expected);
@@ -795,6 +897,47 @@ describe("the global object and undeclared reads", () => {
         sourceType: "script",
       }),
       { output: ["number", "undefined"], error: null }],
+    ["var x = 7; function f(){ return this.x } print(f())",
+      program({
+        type: "Program",
+        body: [
+          {type: "VariableDeclaration", declarations: [{type: "VariableDeclarator", id: {type: "Identifier", name: "x"}, init: {type: "Literal", value: 7, raw: "7"}}], kind: "var"},
+          {
+            type: "FunctionDeclaration",
+            id: {type: "Identifier", name: "f"},
+            params: [],
+            body: {
+              type: "BlockStatement",
+              body: [{type: "ReturnStatement", argument: {type: "MemberExpression", object: {type: "ThisExpression"}, property: {type: "Identifier", name: "x"}, computed: false}}],
+            },
+            expression: false,
+          },
+          {
+            type: "ExpressionStatement",
+            expression: {type: "CallExpression", callee: {type: "Identifier", name: "print"}, arguments: [{type: "CallExpression", callee: {type: "Identifier", name: "f"}, arguments: []}]},
+          },
+        ],
+        sourceType: "script",
+      }),
+      { output: ["7"], error: null }],
+    ["this.y = 3; print(y)",
+      program({
+        type: "Program",
+        body: [
+          {
+            type: "ExpressionStatement",
+            expression: {
+              type: "AssignmentExpression",
+              operator: "=",
+              left: {type: "MemberExpression", object: {type: "ThisExpression"}, property: {type: "Identifier", name: "y"}, computed: false},
+              right: {type: "Literal", value: 3, raw: "3"},
+            },
+          },
+          {type: "ExpressionStatement", expression: {type: "CallExpression", callee: {type: "Identifier", name: "print"}, arguments: [{type: "Identifier", name: "y"}]}},
+        ],
+        sourceType: "script",
+      }),
+      { output: ["3"], error: null }],
   ];
   it.each(cases)("%s", (_source, ast, expected) => {
     expect(evaluate(ast)).toEqual(expected);
