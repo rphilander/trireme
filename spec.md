@@ -43,7 +43,7 @@ Any failure produces `error:usage` with one diagnostic per problem — all of th
 
 ### The workspace
 
-Trireme generates the workspace deterministically: the same manifest produces byte-identical generated files. It writes a `package.json` naming the package and declaring ESM, a `tsconfig.json`, a `vitest.config.ts`, and a conformance module that asserts the implementation and the contract are mutually assignable. It copies the job's `contract.d.ts` and `acceptance/` in unchanged. It creates `src/index.ts` containing a placeholder that typechecks but does not satisfy the contract.
+Trireme generates the workspace deterministically: the same manifest produces byte-identical generated files. It writes a `package.json` naming the package and declaring ESM, a `tsconfig.json`, a `vitest.config.ts`, and a conformance module that asserts the implementation and the contract are mutually assignable. It copies the job's `contract.d.ts` and `acceptance/` in unchanged — subdirectories included, so a suite may carry helper modules its tests import; only the `*.test.ts` files count as acceptance tests, are named to the agent, and are collected by the runner. It creates `src/index.ts` containing a placeholder that typechecks but does not satisfy the contract.
 
 The generated files and the copied files are not writable by the agent. This is structural: no tool addresses them for writing.
 

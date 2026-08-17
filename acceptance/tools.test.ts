@@ -225,6 +225,29 @@ describe("the job's own files", () => {
     expect(JSON.stringify(events)).toContain("adder.test.ts");
   });
 
+  it("copies helper modules under acceptance/ for the tests to import, but does not list them as tests", async () => {
+    job = makeJob({
+      manifest: { safety: { maxIterations: 2 } },
+      acceptance: {
+        "support/expected.ts": "export const FIVE = 5;\n",
+        "adder.test.ts": `import { expect, it } from "vitest";
+import { add } from "adder";
+import { FIVE } from "./support/expected.js";
+it("uses a helper", () => { expect(add(2, 3)).toBe(FIVE); });
+`,
+      },
+    });
+    const agent = performs([{ name: "list_acceptance_tests", arguments: {} }]);
+    const result = await run({ jobDir: job.dir, runsDir: job.runsDir, extensions: [agent.extension], overrides: { model: agent.modelRef } });
+    const events = (readIfPresent(path.join(result.runDir, "events.jsonl")) ?? "");
+    const listing = events.split("\n").find((l) => l.includes('"tool":"list_acceptance_tests"') && l.includes('"ok"')) ?? "";
+    expect(listing).toContain("adder.test.ts");
+    expect(listing).not.toContain("support/expected.ts");
+    // The helper is in the workspace where the test's import finds it, and the run's gate collected exactly one test.
+    expect(readIfPresent(path.join(result.runDir, "workspace", "acceptance", "support", "expected.ts"))).toContain("FIVE");
+    expect(result.tests?.total).toBe(1);
+  });
+
   it("has no tool that writes to the acceptance suite", async () => {
     const { result, workspace } = await perform([
       {

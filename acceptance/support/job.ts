@@ -138,6 +138,7 @@ export function makeJob(spec: JobSpec = {}): TempJob {
     const acceptanceDir = path.join(dir, "acceptance");
     fs.mkdirSync(acceptanceDir, { recursive: true });
     for (const [file, content] of Object.entries(spec.acceptance ?? DEFAULT_ACCEPTANCE)) {
+      fs.mkdirSync(path.dirname(path.join(acceptanceDir, file)), { recursive: true });
       fs.writeFileSync(path.join(acceptanceDir, file), content);
     }
   }

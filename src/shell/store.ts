@@ -52,9 +52,14 @@ export function readJob(jobDir: string): JobInput {
 
   const acceptanceDir = path.join(jobDir, ACCEPTANCE_DIR);
   if (fs.existsSync(acceptanceDir) && fs.statSync(acceptanceDir).isDirectory()) {
-    input.acceptanceFiles = listFilesRecursively(acceptanceDir);
+    input.acceptanceFiles = listFilesRecursively(acceptanceDir).filter(isTestFile);
   }
   return input;
+}
+
+/** Only `*.test.ts` files are acceptance tests; anything else under acceptance/ is a helper the tests import. */
+function isTestFile(relative: string): boolean {
+  return relative.endsWith(".test.ts");
 }
 
 /** A stable identity for the job, so benchmark numbers can be compared. */
@@ -102,7 +107,7 @@ export function materializeWorkspace(options: {
 
   linkToolchain(root, options.triremeRoot);
 
-  return { root, acceptanceFiles: listFilesRecursively(acceptanceTarget) };
+  return { root, acceptanceFiles: listFilesRecursively(acceptanceTarget).filter(isTestFile) };
 }
 
 /**
