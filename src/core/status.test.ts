@@ -25,6 +25,21 @@ const red: TestSummary = {
   })),
 };
 
+// Nothing passes yet — the suite ran but every case failed for one reason
+// (here the package does not export its entry point).
+const stalled: TestSummary = {
+  total: 566,
+  passed: 0,
+  failed: 566,
+  truncated: 546,
+  failures: Array.from({ length: 20 }, (_, i) => ({
+    file: `acceptance/eval-0${(i % 7) + 1}.test.ts`,
+    name: `case ${i}`,
+    message: "TypeError: run is not a function",
+    line: 6 + i,
+  })),
+};
+
 const ok = (): StatusInput => ({ typecheck: { ok: true, diagnostics: [] }, acceptance: green });
 
 describe("a green workspace", () => {
@@ -64,11 +79,12 @@ describe("typecheck problems", () => {
     const status = renderStatus({ ...ok(), typecheck: { ok: false, diagnostics: many } });
     expect(status).toContain(`typecheck: ${STATUS_INLINE_LIMIT + 5} errors`);
     expect(status).toContain("src/modules/arith/index.ts");
+    expect(status).toContain("first:");
     expect(status).not.toContain("TS2322: nope\n".repeat(2));
     expect(status).toContain("typecheck for detail");
   });
 
-  it("names distinct files once each", () => {
+  it("names distinct files once in the summary and surfaces the first diagnostic", () => {
     const status = renderStatus({
       ...ok(),
       typecheck: {
@@ -78,8 +94,9 @@ describe("typecheck problems", () => {
         ),
       },
     });
-    expect(status.match(/src\/a\.ts/g)?.length).toBe(1);
-    expect(status).toContain("src/b.ts");
+    // The summary line lists each distinct file once; the first diagnostic is shown in full.
+    expect(status).toContain("src/a.ts, src/b.ts");
+    expect(status).toContain("first: src/a.ts(0,1): error TS1: x");
   });
 });
 
@@ -93,6 +110,20 @@ describe("the acceptance score", () => {
 
   it("points at run_acceptance_tests for the detail", () => {
     expect(renderStatus({ ...ok(), acceptance: red })).toContain("run_acceptance_tests");
+  });
+
+  it("names the blocker when nothing passes yet, so a structural failure is not read as a wrong implementation", () => {
+    const status = renderStatus({ ...ok(), acceptance: stalled });
+    expect(status).toContain("acceptance: 0/566 passing");
+    // The one line that says why the whole suite is red — here, the entry is unwired.
+    expect(status).toContain("run is not a function");
+    expect(status).toContain("run_acceptance_tests");
+    // Still not a dump: the shared message appears once, not once per failure.
+    expect(status.match(/run is not a function/g)?.length).toBe(1);
+  });
+
+  it("does not surface a failure message once a gradient exists (a partial pass is a real signal)", () => {
+    expect(renderStatus({ ...ok(), acceptance: red })).not.toContain("parse is not a function");
   });
 });
 

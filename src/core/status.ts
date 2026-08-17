@@ -32,7 +32,13 @@ function typecheckLine(check: StatusInput["typecheck"]): string[] {
     return [`typecheck: ${count} ${noun}`, ...check.diagnostics.map((d) => `  ${d}`)];
   }
   const files = [...new Set(check.diagnostics.map(fileOf))];
-  return [`typecheck: ${count} ${noun} in ${files.join(", ")} (call typecheck for detail)`];
+  // The count and file list summarise; the first diagnostic in full is the one
+  // line that usually tells the agent what to do (a missing export, a bad
+  // import) without a round-trip to the detail tool.
+  return [
+    `typecheck: ${count} ${noun} in ${files.join(", ")} (call typecheck for detail)`,
+    `  first: ${check.diagnostics[0]}`,
+  ];
 }
 
 function testsLine(label: string, summary: TestSummary, detailTool: string | undefined): string {
@@ -42,7 +48,18 @@ function testsLine(label: string, summary: TestSummary, detailTool: string | und
   if (summary.total === 0) return `${label}: none yet`;
   const line = `${label}: ${summary.passed}/${summary.total} passing`;
   if (summary.failed === 0 || detailTool === undefined) return line;
-  return `${line} (call ${detailTool} for detail)`;
+  const detail = `(call ${detailTool} for detail)`;
+  // When nothing passes yet there is no gradient to read, and a flat "0/N
+  // passing" reads the same whether the implementation is wrong or the suite
+  // could not run at all (an unwired entry, a module that throws on load). The
+  // first failure's message names which, so the agent fixes the blocker rather
+  // than grinding on code the suite never reached. Once anything passes, the
+  // fraction is the signal and the detail tool carries the specifics.
+  if (summary.passed === 0) {
+    const why = summary.failures[0]?.message.split("\n")[0];
+    if (why) return `${line} — ${why} ${detail}`;
+  }
+  return `${line} ${detail}`;
 }
 
 export function renderStatus(input: StatusInput): string {
