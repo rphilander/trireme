@@ -91,6 +91,11 @@ describe("what a run leaves behind", () => {
     const lines = log!.trim().split("\n");
     expect(lines.length).toBeGreaterThan(0);
     for (const line of lines) expect(() => JSON.parse(line)).not.toThrow();
+    // Every event says when it happened, so a trajectory can be read against
+    // the clock and a run at one wall-clock cap compared with a run at another.
+    const stamps = lines.map((line) => JSON.parse(line).at as string);
+    for (const at of stamps) expect(at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    for (let i = 1; i < stamps.length; i++) expect((stamps[i] ?? "") >= (stamps[i - 1] ?? "")).toBe(true);
   });
 
   it("writes a machine-readable report that agrees with the returned result", async () => {

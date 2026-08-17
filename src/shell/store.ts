@@ -163,15 +163,18 @@ export function ensureRunDir(runsDir: string, runId: string): string {
 export class EventLog {
   private readonly stream: fs.WriteStream;
   private readonly file: string;
+  private readonly now: () => number;
 
-  constructor(file: string) {
+  constructor(file: string, clock: { now: () => number } = { now: () => Date.now() }) {
     this.file = file;
+    this.now = clock.now;
     fs.mkdirSync(path.dirname(file), { recursive: true });
     this.stream = fs.createWriteStream(file, { flags: "a" });
   }
 
+  /** Appends the event with `at`, the time it happened, as the first field. */
   write(event: Record<string, unknown>): void {
-    this.stream.write(`${JSON.stringify(event)}\n`);
+    this.stream.write(`${JSON.stringify({ at: new Date(this.now()).toISOString(), ...event })}\n`);
   }
 
   async close(): Promise<void> {

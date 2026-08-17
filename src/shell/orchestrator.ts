@@ -166,7 +166,7 @@ export async function runJob(options: RunOptions): Promise<RunResult> {
   provenance.thinkingEffective = provenance.thinking;
 
   const runDir = ensureRunDir(runsDir, runId);
-  const log = new EventLog(path.join(runDir, "events.jsonl"));
+  const log = new EventLog(path.join(runDir, "events.jsonl"), clock);
   const graph = new BuildGraph();
 
   fs.writeFileSync(
