@@ -1,0 +1,15 @@
+{
+  "name": "es5-interpreter",
+  "version": "0.1.0",
+  "description": "An ECMAScript 5 interpreter: parse and evaluate ES5 source, checked against acorn and Node.",
+  "model": "deepseek/deepseek-v4-flash",
+  "thinking": "high",
+  "limits": {
+    "costUsd": 3,
+    "wallClockMinutes": 90
+  },
+  "safety": {
+    "maxIterations": 40
+  },
+  "dependencies": {}
+}

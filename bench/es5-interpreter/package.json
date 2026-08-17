@@ -1,0 +1,7 @@
+{
+  "name": "es5-interpreter-generator",
+  "private": true,
+  "type": "module",
+  "description": "Tooling for generating the es5-interpreter acceptance suite: acorn validates ES5-ness, Node vm is the oracle for results. Not part of the job.",
+  "dependencies": { "acorn": "8.18.0" }
+}
