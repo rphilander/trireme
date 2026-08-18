@@ -1,0 +1,12 @@
+Build the npm package specified in spec.md, in this directory.
+
+contract.d.ts fixes the public API. The tests in acceptance/ decide when the
+package is done: they import the package by name, and every one of them must
+pass. Do not modify acceptance/, spec.md, or contract.d.ts. The package must
+have zero runtime dependencies.
+
+vitest and typescript are installed as dev dependencies: `npm test` runs the
+acceptance suite (you can also run vitest on a single file), `npm run
+typecheck` runs tsc.
+
+Work until the whole acceptance suite passes and typecheck is clean.
