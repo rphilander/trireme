@@ -1,0 +1,6 @@
+{
+  "name": "es5-language-generator",
+  "private": true,
+  "type": "module",
+  "description": "Tooling config for generating the es5-language acceptance suite (Test262 boundary D: the whole language chapter). The shared Test262-axis machinery — scope rules, vetting, emission, scoring — lives in ../es5-conformance (test262.ts, corpus.ts, suite.ts) with its unit tests. Not part of the job."
+}

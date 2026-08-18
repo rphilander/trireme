@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import { run } from "es5-conformance";
-import { HARNESS, LIVENESS, SENTINEL } from "./support/harness.js";
+import { errorMatches, HARNESS, LIVENESS, SENTINEL } from "./support/harness.js";
 
 describe("language/expressions/multiplication", () => {
   const cases: Array<[string, string, string | null]> = [
@@ -45,7 +45,8 @@ describe("language/expressions/multiplication", () => {
       expect(result.error).toBe(null);
       expect(result.output[result.output.length - 1]).toBe(SENTINEL);
     } else {
-      expect(run(HARNESS + body).error).toBe(expected);
+      const err = run(HARNESS + body).error;
+      expect(errorMatches(err, expected), `expected error ${expected}, got ${err}`).toBe(true);
     }
   });
 });

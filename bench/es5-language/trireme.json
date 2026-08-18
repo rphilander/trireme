@@ -1,0 +1,15 @@
+{
+  "name": "es5-language",
+  "version": "0.1.0",
+  "description": "An ECMAScript 5 interpreter checked against the whole Test262 language chapter (expressions, statements, ASI, scope, types).",
+  "model": "deepseek/deepseek-v4-flash",
+  "thinking": "high",
+  "limits": {
+    "costUsd": 3,
+    "wallClockMinutes": 90
+  },
+  "safety": {
+    "maxIterations": 40
+  },
+  "dependencies": {}
+}

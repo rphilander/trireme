@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  assembleHarness, caseBody, CHAPTERS_A, expectedError, inScope, judge,
-  KNOWN_INCLUDES, LIVENESS, parseMeta, parsesAtEs5, SENTINEL, stripBody,
-  usesOutOfScope, type EvalResult, type Meta,
+  assembleHarness, caseBody, CHAPTERS_A, errorMatches, expectedError, inScope,
+  judge, KNOWN_INCLUDES, LIVENESS, parseMeta, parsesAtEs5, SENTINEL, stripBody,
+  toCase, usesOutOfScope, usesWith, type EvalResult, type Meta,
 } from "./test262.ts";
 
 // A realistic Test262 file: BSD license, frontmatter, //CHECK body.
@@ -53,6 +53,7 @@ describe("inScope", () => {
   it("rejects async", () => expect(inScope(with_({ flags: ["async"] }))).toBe(false));
   it("rejects a features tag (post-ES5 corner)", () => expect(inScope(with_({ feats: ["generators"] }))).toBe(false));
   it("rejects propertyHelper.js (needs descriptors)", () => expect(inScope(with_({ inc: ["propertyHelper.js"] }))).toBe(false));
+  it("rejects raw (must run without the harness/liveness assembly)", () => expect(inScope(with_({ flags: ["raw"] }))).toBe(false));
   it("rejects an unknown include", () => expect(inScope(with_({ inc: ["mystery.js"] }))).toBe(false));
 });
 
@@ -167,5 +168,60 @@ describe("constants", () => {
   it("KNOWN_INCLUDES excludes propertyHelper.js", () => {
     expect(KNOWN_INCLUDES.has("sta.js")).toBe(true);
     expect(KNOWN_INCLUDES.has("propertyHelper.js")).toBe(false);
+  });
+});
+
+describe("usesWith", () => {
+  it("finds a with statement", () => expect(usesWith("var o = {}; with (o) { x = 1; }")).toBe(true));
+  it("finds a nested with", () => expect(usesWith("function f(){ if (1) { with ({}) {} } }")).toBe(true));
+  it("does not trip on startsWith / property names", () =>
+    expect(usesWith('var s = "a"; s.startsWith("a"); var o = { with: 1 }; o.with;')).toBe(false));
+  it("is false for source that does not parse at ES5", () => expect(usesWith("with (")).toBe(false));
+});
+
+describe("errorMatches", () => {
+  it("parse negatives are contract-exact", () => {
+    expect(errorMatches("SyntaxError", "SyntaxError")).toBe(true);
+    expect(errorMatches("SyntaxError: unexpected token", "SyntaxError")).toBe(false);
+    expect(errorMatches(null, "SyntaxError")).toBe(false);
+  });
+  it("runtime negatives match the name part before the colon", () => {
+    expect(errorMatches("Test262Error: #1: x === 1", "Test262Error")).toBe(true);
+    expect(errorMatches("Test262Error: ", "Test262Error")).toBe(true);
+    expect(errorMatches("TypeError", "TypeError")).toBe(true);
+    expect(errorMatches("RangeError: oops", "TypeError")).toBe(false);
+    expect(errorMatches(null, "TypeError")).toBe(false);
+  });
+});
+
+describe("judge on runtime negatives", () => {
+  it("accepts a ToString'd Test262Error for a declared Test262Error", () => {
+    const run = (): EvalResult => ({ output: [], error: "Test262Error: #1: bad" });
+    expect(judge(run, "H;", "throw new Test262Error('#1: bad');", "Test262Error")).toBe(true);
+  });
+  it("still requires the literal SyntaxError for parse negatives", () => {
+    const run = (): EvalResult => ({ output: [], error: "SyntaxError: line 3" });
+    expect(judge(run, "H;", "var x = ;", "SyntaxError")).toBe(false);
+  });
+});
+
+describe("toCase scope rules for the language tree", () => {
+  const read = () => "";
+  it("drops an evaluating case that uses `with`", () => {
+    const src = file("es5id: 11.13.2_A5", "var scope = {}; with (scope) { x = 1; }\n");
+    expect(toCase(src, "ch", "f.js", read)).toBe(null);
+  });
+  it("keeps a parse-negative whose body mentions with-like syntax but never evaluates", () => {
+    const src = file("es5id: 12.10_A1\nnegative:\n  phase: parse\n  type: SyntaxError", "$DONOTEVALUATE();\nwith (\n");
+    const c = toCase(src, "ch", "f.js", read);
+    expect(c?.expected).toBe("SyntaxError");
+  });
+  it("drops a parse-negative that acorn accepts at ES5 (reference disagreement)", () => {
+    const src = file("es5id: 7.6-30\nnegative:\n  phase: parse\n  type: SyntaxError", "var cla\\u0073s = 123;\n");
+    expect(toCase(src, "ch", "f.js", read)).toBe(null);
+  });
+  it("keeps an ordinary positive", () => {
+    const src = file("es5id: 12.5_A1", "if (1 + 1 !== 2) { throw new Test262Error('no'); }\n");
+    expect(toCase(src, "ch", "f.js", read)?.expected).toBe(null);
   });
 });

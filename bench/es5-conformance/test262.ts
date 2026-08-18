@@ -21,6 +21,8 @@
  */
 import * as acorn from "acorn";
 
+export const ACORN_VERSION: string = (acorn as unknown as { version: string }).version;
+
 export type EvalResult = { output: string[]; error: string | null };
 
 // Boundary A of the axis, in emit order: the arithmetic, relational and
@@ -79,6 +81,9 @@ export function parseMeta(src: string): Meta {
 export function inScope(mt: Meta): boolean {
   if (!mt.es5) return false;
   if (mt.flags.includes("module") || mt.flags.includes("onlyStrict") || mt.flags.includes("async") || mt.flags.includes("CanBlockIsFalse")) return false;
+  // `raw` tests must run as bare source, no harness prepended and nothing
+  // appended — our harness + liveness assembly cannot honor that, so skip.
+  if (mt.flags.includes("raw")) return false;
   if (mt.feats.length) return false;
   if (mt.inc.some((i) => !KNOWN_INCLUDES.has(i))) return false;
   return true;
@@ -95,6 +100,27 @@ export function usesOutOfScope(src: string): boolean {
 /** Whether acorn accepts `source` at `ecmaVersion: 5` — the definition of ES5-valid. */
 export function parsesAtEs5(source: string): boolean {
   try { acorn.parse(source, { ecmaVersion: 5, sourceType: "script" }); return true; } catch { return false; }
+}
+
+/**
+ * Whether the source contains a `with` statement — checked on the AST, so a
+ * call like `s.startsWith(x)` never trips it. The spec leaves `with`
+ * unspecified, so cases that evaluate one are out of scope. Source that does
+ * not parse at ES5 has no `with` to evaluate.
+ */
+export function usesWith(source: string): boolean {
+  let tree: unknown;
+  try { tree = acorn.parse(source, { ecmaVersion: 5, sourceType: "script" }); } catch { return false; }
+  let found = false;
+  const walk = (node: unknown): void => {
+    if (found || !node || typeof node !== "object") return;
+    if (Array.isArray(node)) { node.forEach(walk); return; }
+    const n = node as { type?: unknown } & Record<string, unknown>;
+    if (n.type === "WithStatement") { found = true; return; }
+    for (const key of Object.keys(n)) if (key !== "loc" && key !== "range") walk(n[key]);
+  };
+  walk(tree);
+  return found;
 }
 
 /**
@@ -156,14 +182,36 @@ export function toCase(
   const body = caseBody(src, mt, readInclude);
   const expected = expectedError(mt);
   if (expected === null && !parsesAtEs5(body + LIVENESS)) return null;
+  // A parse-negative acorn *accepts* at ES5 contradicts our reference (acorn
+  // is the definition of ES5-valid here — e.g. escaped-keyword identifiers,
+  // which acorn allows in sloppy mode); drop it as out of scope.
+  if (mt.phase === "parse" && parsesAtEs5(body)) return null;
+  // Cases that evaluate a `with` statement are out of scope: the spec leaves
+  // `with` unspecified. (A parse-negative never evaluates, so it may keep one.)
+  const evaluates = expected === null || mt.phase !== "parse";
+  if (evaluates && usesWith(body)) return null;
   return { chapter, id: `${chapter}/${file.replace(/\.js$/, "")}`, body, expected, phase: mt.phase };
+}
+
+/**
+ * Whether a reported error satisfies a negative case's declared error.
+ * `"SyntaxError"` (a parse negative) is contract-exact: `run` must report the
+ * literal `"SyntaxError"`. Any other declared error matches on the name part
+ * before the first `:` — a thrown `Test262Error` has no `name` property, so
+ * ToString gives `"Test262Error: <message>"`, and the name is what the
+ * frontmatter declares.
+ */
+export function errorMatches(reported: string | null, expected: string): boolean {
+  if (expected === "SyntaxError") return reported === "SyntaxError";
+  return reported !== null && reported.split(":")[0].trim() === expected;
 }
 
 /**
  * The acceptance verdict, identical to what each emitted test asserts and what
  * `measure.ts`/`holdout.ts` score by. A positive case must run to completion
- * with the sentinel as its last printed line; a negative must report exactly
- * the declared error. `run` throwing at the host level is always a fail.
+ * with the sentinel as its last printed line; a negative must report the
+ * declared error (see `errorMatches`). `run` throwing at the host level is
+ * always a fail.
  */
 export function judge(
   run: (source: string) => EvalResult,
@@ -178,5 +226,5 @@ export function judge(
   }
   let r: EvalResult;
   try { r = run(harness + body); } catch { return false; }
-  return r.error === expected;
+  return errorMatches(r.error, expected);
 }

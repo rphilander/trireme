@@ -7,9 +7,8 @@
  *   TEST262_DIR=/path/to/test262 node bench/es5-conformance/holdout.ts <runId>
  */
 import { pathToFileURL } from "node:url";
-import { score } from "./measure.ts";
+import { scoreArtifact } from "./measure.ts";
 import { collectCases, harnessOf } from "./corpus.ts";
-import { loadArtifact } from "./artifact.ts";
 
 // Operator chapters outside boundary A: unary, bitwise, shift, logical,
 // conditional, and the membership/typeof family. Missing chapters are skipped
@@ -28,18 +27,14 @@ async function main(argv: string[]): Promise<number> {
   if (!argv[0]) throw new Error("usage: holdout.ts <runId>");
   const cases = collectCases(dir, HELD_OUT);
   const harness = harnessOf(dir);
-  const { run, cleanup } = await loadArtifact(argv[0]);
-  try {
-    const s = score(run, harness, cases);
-    for (const chapter of Object.keys(s.byChapter)) {
-      const b = s.byChapter[chapter];
-      console.log(`  ${chapter.padEnd(24)} ${String(b.pass).padStart(3)}/${String(b.n).padStart(3)}`);
-    }
-    const pct = s.total ? (100 * s.passed / s.total).toFixed(1) : "0.0";
-    console.log(`held-out ${argv[0].slice(-6)}: ${s.passed}/${s.total} = ${pct}%`);
-  } finally {
-    cleanup();
+  const s = await scoreArtifact(argv[0], harness, cases);
+  for (const chapter of Object.keys(s.byChapter)) {
+    const b = s.byChapter[chapter];
+    console.log(`  ${chapter.padEnd(24)} ${String(b.pass).padStart(3)}/${String(b.n).padStart(3)}`);
   }
+  const pct = s.total ? (100 * s.passed / s.total).toFixed(1) : "0.0";
+  console.log(`held-out ${argv[0].slice(-6)}: ${s.passed}/${s.total} = ${pct}%`);
+  if (s.hung.length) console.log(`  (${s.hung.length} case(s) did not terminate)`);
   return 0;
 }
 

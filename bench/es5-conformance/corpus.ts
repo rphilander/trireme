@@ -40,3 +40,29 @@ export function collectCases(dir: string, chapters: readonly string[]): Case[] {
   }
   return cases;
 }
+
+/**
+ * Every in-scope case under `test/<root>`, walked recursively in sorted order.
+ * Each case's `chapter` is its directory path relative to `test/` (e.g.
+ * `language/statements/for-in`), so ids trace to the upstream file. Used by
+ * whole-subtree boundaries; `collectCases` keeps boundary A's flat naming.
+ */
+export function collectTree(dir: string, root: string): Case[] {
+  const cases: Case[] = [];
+  const seen = new Set<string>();
+  const walk = (rel: string): void => {
+    const abs = path.join(dir, "test", rel);
+    for (const entry of fs.readdirSync(abs, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const childRel = path.posix.join(rel, entry.name);
+      if (entry.isDirectory()) { walk(childRel); continue; }
+      if (!entry.name.endsWith(".js") || entry.name.includes("_FIXTURE")) continue;
+      const src = fs.readFileSync(path.join(abs, entry.name), "utf8");
+      const c = toCase(src, rel, entry.name, (inc) => readHarness(dir, inc));
+      if (!c || seen.has(c.id)) continue;
+      seen.add(c.id);
+      cases.push(c);
+    }
+  };
+  if (fs.existsSync(path.join(dir, "test", root))) walk(root);
+  return cases;
+}

@@ -2,7 +2,7 @@
 /**
  * measure.ts — score a finished run's interpreter against a Test262 subset.
  *
- *   TEST262_DIR=/path/to/test262 node bench/es5-conformance/measure.ts <runId> [chapter ...]
+ *   TEST262_DIR=/path/to/test262 node bench/es5-conformance/measure.ts <runId> [chapter ... | --tree <root>]
  *   TEST262_DIR=/path/to/test262 node bench/es5-conformance/measure.ts --noop  [chapter ...]
  *
  * Default chapters = boundary A. Prints the per-chapter and total pass rate
@@ -14,9 +14,9 @@
  * graded subset, and (by naming other chapters) its generalisation beyond it.
  */
 import { pathToFileURL } from "node:url";
+import { Worker } from "node:worker_threads";
 import { CHAPTERS_A, judge, type Case, type EvalResult } from "./test262.ts";
-import { collectCases, harnessOf } from "./corpus.ts";
-import { loadArtifact } from "./artifact.ts";
+import { collectCases, collectTree, harnessOf } from "./corpus.ts";
 
 export type Score = {
   total: number;
@@ -34,6 +34,51 @@ export function score(run: (s: string) => EvalResult, harness: string, cases: Ca
     if (judge(run, harness, c.body, c.expected)) { b.pass++; passed++; }
   }
   return { total: cases.length, passed, byChapter };
+}
+
+/**
+ * Score an artifact with a per-case watchdog: the loop runs in a worker
+ * (measure-worker.ts), and a case that exceeds `timeoutMs` gets its worker
+ * terminated, is recorded as a fail, and scoring resumes at the next case —
+ * an interpreter under test may not terminate on a case it has never seen.
+ */
+export async function scoreArtifact(
+  runId: string,
+  harness: string,
+  cases: Case[],
+  timeoutMs = 10_000,
+): Promise<Score & { hung: string[] }> {
+  const byChapter: Record<string, { n: number; pass: number }> = {};
+  for (const c of cases) (byChapter[c.chapter] ??= { n: 0, pass: 0 }).n++;
+  let passed = 0;
+  const hung: string[] = [];
+  let next = 0;
+  while (next < cases.length) {
+    const startAt = next;
+    const outcome = await new Promise<"done" | "stalled">((resolve) => {
+      const worker = new Worker(new URL("./measure-worker.ts", import.meta.url), {
+        workerData: { runId, harness, cases, startAt },
+      });
+      let timer: NodeJS.Timeout;
+      const arm = () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => void worker.terminate().then(() => resolve("stalled")), timeoutMs);
+      };
+      arm();
+      worker.on("message", (m: { i?: number; pass?: boolean; done?: boolean }) => {
+        if (m.done) { clearTimeout(timer); void worker.terminate(); resolve("done"); return; }
+        next = (m.i ?? 0) + 1;
+        if (m.pass) { passed++; byChapter[cases[m.i!].chapter].pass++; }
+        arm();
+      });
+      worker.on("error", () => { clearTimeout(timer); resolve("stalled"); });
+    });
+    if (outcome === "stalled" && next < cases.length) {
+      hung.push(cases[next].id); // the case the worker was on when it stalled
+      next++;
+    }
+  }
+  return { total: cases.length, passed, byChapter, hung };
 }
 
 function requireDir(): string {
@@ -54,9 +99,13 @@ function report(label: string, s: Score): void {
 async function main(argv: string[]): Promise<number> {
   const dir = requireDir();
   const noop = argv[0] === "--noop";
-  if (!argv[0]) throw new Error("usage: measure.ts <runId|--noop> [chapter ...]");
-  const chapters = argv.slice(1).length ? argv.slice(1) : CHAPTERS_A;
-  const cases = collectCases(dir, chapters);
+  if (!argv[0]) throw new Error("usage: measure.ts <runId|--noop> [chapter ... | --tree <root>]");
+  // `--tree language` scores a whole subtree of test/ recursively (boundary D
+  // and beyond); bare names remain boundary-A chapters under language/expressions.
+  const treeAt = argv.indexOf("--tree");
+  const cases = treeAt >= 0
+    ? collectTree(dir, argv[treeAt + 1] ?? "language")
+    : collectCases(dir, argv.slice(1).length ? argv.slice(1) : CHAPTERS_A);
   const harness = harnessOf(dir);
 
   if (noop) {
@@ -64,12 +113,9 @@ async function main(argv: string[]): Promise<number> {
     report("NO-OP control", s);
     return 0;
   }
-  const { run, cleanup } = await loadArtifact(argv[0]);
-  try {
-    report(`artifact ${argv[0].slice(-6)}`, score(run, harness, cases));
-  } finally {
-    cleanup();
-  }
+  const s = await scoreArtifact(argv[0], harness, cases);
+  report(`artifact ${argv[0].slice(-6)}`, s);
+  if (s.hung.length) console.log(`  (${s.hung.length} case(s) did not terminate: ${s.hung.slice(0, 5).join(", ")}${s.hung.length > 5 ? ", …" : ""})`);
   return 0;
 }
 
