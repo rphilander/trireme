@@ -17,6 +17,7 @@ set -euo pipefail
 RUN_DIR=$(cd "$1" && pwd)
 WALL=${2:-5400}
 HERE=$(cd "$(dirname "$0")" && pwd)
+PROMPT_FILE=${3:-$HERE/prompt.txt}
 SP_SRT=/tmp/claude-1000/-home-rodrigo/c7d6dba8-06f6-4760-a889-7fefd3cc2e6a/scratchpad/srt-install/node_modules/.bin/srt
 NODE_BIN=$HOME/.local/lib/node/bin
 WS=$RUN_DIR/workspace
@@ -27,7 +28,7 @@ source "$HOME/.bashrc" >/dev/null 2>&1 || true
 
 # The prompt must be readable INSIDE the sandbox; the experiments dir is not
 # (it lives under ~/src, which is deny-read). Copy it into the run dir.
-cp "$HERE/prompt.txt" "$RUN_DIR/prompt.txt"
+cp "$PROMPT_FILE" "$RUN_DIR/prompt.txt"
 
 # Snapshot loop: workspace state every 5 minutes, node_modules excluded.
 (

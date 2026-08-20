@@ -1,0 +1,123 @@
+Build the npm package specified in spec.md, in this directory.
+
+contract.d.ts fixes the public API. The tests in acceptance/ decide when the
+package is done: they import the package by name, and every one of them must
+pass. Do not modify acceptance/, spec.md, or contract.d.ts. The package must
+have zero runtime dependencies.
+
+vitest and typescript are installed as dev dependencies: `npm test` runs the
+acceptance suite (you can also run vitest on a single file), `npm run
+typecheck` runs tsc.
+
+Work until the whole acceptance suite passes and typecheck is clean.
+
+---
+
+Below is a retrospective analysis of nine previous attempts at this exact
+task, produced automatically by the same model you are. It diagnoses what
+distinguished the successful attempts from the failed ones and derives a
+recommended work process. Use it as you see fit.
+
+# Analysis of the nine runs
+
+## Summary of outcomes
+
+| Run | Result | Time | Cost | First full-suite score | Full-suite runs |
+|---|---|---|---|---|---|
+| ctl-1 | ✅ 2367/2367 | 55.1 min | $0.62 | 1723 @25 | 12+ |
+| ctl-2 | ❌ 2112/2367, killed @90 | 90 | $0.47 | 261 @20 | 7 (with a 54-min gap) |
+| ctl-3 | ✅ 2367/2367 | 63.0 | $0.95 | 2344 @51 (after per-file grind) | 6+ full, 16 targeted |
+| ctl-4 | ✅ 2367/2367 | 62.7 | $0.69 | 314 @26 → 2022 @27 | 8+ |
+| ctl-5 | ✅ 2367/2367 | 50.4 | $0.59 | 2174 @34 | 8+ |
+| ctl-6 | ❌ 0/2367 (broken import), killed @90 | 90 | $0.56 | 314 @36 (never improved) | 2 (both @36) |
+| ctl-7 | ✅ 2367/2367 | 62.3 | $0.81 | 1890 @31 | 8+ full, 30+ targeted |
+| ctl-8 | ✅ 2367/2367 | 42.6 | $0.49 | 2271 @30 | 6 |
+| ctl-9 | ✅ 2367/2367 | 57.2 | $0.71 | 314 @26→2227 @29 | 12+ |
+
+---
+
+## 1. Patterns distinguishing successful from failed runs
+
+**The decisive variable is the continuity of full-suite feedback, not skill at any single feature.**
+
+1. **Every success runs the full suite every 2–5 minutes once the core exists; both failures stopped.**
+   - ctl-1: 13 full-suite runs between min 25 and 51, score climbing 1723→2186→2304→2312→2351→2354→2359→2366→2367.
+   - ctl-9: full suite at 26, 27, 29, 33, 35, 38, 41, 43, 47, 49, 52, 54: 314→2227→2235→…→2367.
+   - ctl-2: **no full-suite run between min 20 (261) and min 74 (1608)** — a 54-minute blackout.
+   - ctl-6: **no acceptance run after min 36 (314)**. Its only later test (min 69, `dbg.test.ts 1/1`) is a module-local test that doesn't even touch the acceptance entry.
+
+2. **Successes land a near-complete core before or immediately after their first full-suite run.**
+   - First-run scores for successes: 1723 (ctl-1), 2344 (ctl-3), 2022 (ctl-4's second run), 2174 (ctl-5), 1890 (ctl-7), 2271 (ctl-8), 2227 (ctl-9's keyed-on run). Six of seven are ≥1700, five ≥1890.
+   - ctl-4 and ctl-9 show the "314-then-one-big-jump" shape: they used the 314 run purely to verify the harness, then landed the core and immediately jumped +1700–1900.
+   - ctl-6 got the identical 314 baseline at min 36 and **never made the jump** — the core never landed in runnable form.
+
+3. **A near-monotonic score and a fix-rate that matches the phase of the run.**
+   - Mid-game successes clear ~200–450 tests per full-suite cycle (ctl-1: +463 in 7 min; ctl-9: +236 per ~3-min cycle).
+   - Late tail runs clear ~10–30 per cycle (ctl-1: 2351→2354→2359→2366 over min 43–49; ctl-9: 2344→2356→2366→2367 over min 47–54).
+   - This implies a clock budget: **2300 by ~min 40 is comfortably survivable; 1600 at min 70 is not.**
+
+4. **Successes use the 54 acceptance files as their triage map.** Per-file runs drive the tail: ctl-3 (global-code, punctuators, reserved-words, asi, expressions-*, directive-prologue, eval-code, statements-4), ctl-4 (function-code 142→…→193), ctl-7 (expressions-1..5, statements-1/2/5, types-1, arguments-object), ctl-1 (white-space 37→75→84). Failures barely did this — ctl-2's only acceptance-file run is `asi.test.ts 97/101` at min 64, and ctl-6 never ran any targeted acceptance file.
+
+5. **Successes end with a verification ritual: 2–4 consecutive green full-suite/(suite) runs plus typecheck.** Failures ended mid-iteration (ctl-2) or with an unverified, broken tree (ctl-6).
+
+6. **Successes typecheck during the build phase** (ctl-1 ×4, ctl-3 ×7, ctl-4 ×4, ctl-5 ×4, ctl-8 ×6, ctl-9 ×8 all in min 20–30). Neither failure's blocker was typecheck (ctl-2 was typecheck-ok at the end), but the discipline keeps the tail free of type bugs.
+
+Tool mix is not predictive: ctl-3 (heavy `python-script` use) and ctl-6 (also heavy early `python-script` use) diverged completely. The separator is purely the test loop.
+
+---
+
+## 2. Distribution of outcomes
+
+- **7/9 (78%) full success; 2/9 fail.** Success is achievable and common for this model on this task — the question is discipline, not capability.
+- **Clean time separation:** successes finished at 42.6, 50.4, 55.1, 57.2, 62.3, 62.7, 63.0 min — all with ≥27 minutes of slack under the 90-min cap. Both failures were **killed at the cap at exactly 90 min**.
+- The two failures are qualitatively different: one is a near-miss **time** failure (ctl-2: 2112/2367 = 89.3%, typecheck ok), one is a catastrophic **integrity** failure (ctl-6: 0/2367 — worse than its own mid-run 314, because the entry module import broke).
+- The exact score **314** appears as the skeleton baseline in ctl-4 (min 26), ctl-6 (min 36), and ctl-9 (min 26) — almost certainly the set of tests that pass on a stub that throws everything (a large chunk of the 321 negative tests pass "for free" against a throw-on-unsupported-syntax stub; also note ctl-1's smoke suite at min 24–54 shows the same vibe). Three runs saw it; two escaped it immediately, one never did. **Getting 314 means "harness is correct, language isn't implemented."** ctl-2's 261 at min 20 is *below* this baseline — a hint its harness/error contract was slightly off at that point.
+- Cost is uncorrelated with outcome ($0.47–$0.95; the cheapest run failed, the most expensive succeeded). The binding constraint is wall-clock, not spend.
+
+---
+
+## 3. Diagnosis of the two failed runs
+
+### ctl-2 — the late-start-of-fixing failure (2112/2367 @ cap)
+
+**What went wrong:** The first 20 minutes look like the successful runs: heavy recon, core writing, `typecheck×5`, first full-suite at min 20 (261). Then the agent went dark on suite feedback. Between min 20 and min 74 there is **not one acceptance run**; the only test activity is scratch probes (`"$f" 14/16` @34; `single.test.ts` runs @64–73). From the action counts, min 25–60 shows edit/write/python work but almost no tests — a long, testless build phase. When the full suite finally reappears @74 it shows 1608, meaning ~54 minutes of work advanced the score with **zero full-suite confirmation of what was broken or fixed**. The minute 74→85 burst (edit×8, 22 test calls, full suite 1608→1623→1708→1794→2112) shows the fix-loop works at a good rate (~500 tests in 11 min ≈ 45/min) once engaged — it was simply started ~35 minutes too late. The cap hit at 90 with 255 tests short; at that rate it needed only ~5–6 more minutes.
+
+**Where the outcome was sealed:** Process-wise, at ~min 20–25 when the full-suite loop was abandoned — every success from that point on ran the suite nearly every 5-minute bucket. Quantitatively, by ~min 74–80: at 1608 with ~15 min left and ~760 tests to go, the math was already against the cap. The asi-test at min 64 (97/101) shows the interpreter was basically complete by then; the run just never got the organized tail chase it needed.
+
+### ctl-6 — the unverified-refactor failure (0/2367 @ cap)
+
+**What went wrong:** The first 36 minutes are indistinguishable from the two successful runs that also saw 314: skeleton, smoke tests climbing 1/7→2/7→7/7, first full-suite @36: **314 (twice)**. Then the agent stopped verifying entirely: no acceptance/debug of the suite after min 36; buckets 40–45 empty, 45–50 empty, and only sparse activity through min 70. At some point after min 36 (most plausibly in the silent stretch or the min 65–70 structural touches) the agent **moved/renamed a file such that the entry module imports a file that does not exist**. The only later test (min 69, `dbg.test.ts 1/1`) is module-local and doesn't import the entry, so it gave **false-positive feedback** — the acceptance entry was already broken. Typecheck, which would have caught a bad relative import, was not run (last recorded typecheck at min 30–35). Final state: 0/2367 — a **regression below the 314 baseline it had banked at min 36**.
+
+**Where the outcome was sealed:** The moment the agent stopped running the suite after min 36, any destructive change became invisible — from then on the run was riding on luck. The specific disaster was sealed at the refactor; undetected because unverified. This is the purest process lesson in the dataset: ctl-6 is the only run whose final state is *worse* than its best observed state.
+
+### The successes, in contrast
+
+- ctl-8 is the ideal shape: only 8 test invocations, every one high-scope; first full run @30 = 2271, then 2335, 2361, 2367 in 9 minutes. **Maximize completeness of the core before the first run, then let the full suite drive everything.**
+- ctl-3 is the per-file alternative: 16 targeted acceptance-file grinds (each to ≥97%) before the first full run @51 = 2344, green 8 minutes later. Valid, slightly riskier (delays the first full-suite signal to min 51).
+- ctl-7 shows even a success has a transient regression (statements-2: 106/108 → 37/108 → 108/108 across 1 minute) — the difference is it re-ran immediately and recovered.
+
+---
+
+## 4. What I would do on a tenth run
+
+Evidence-derived playbook, all before ~min 63 (no success took longer).
+
+**Phase 0 — Recon (0–15 min).** Read the task/README, then the prelude (`sta.js` + `assert.js`) carefully — the contract for how `run()` returns output and errors is defined there, and every one of the 2367 tests depends on it. Skim all 54 acceptance files to make a feature→file map (asi, white-space, reserved-words, punctuators, directive-prologue, eval-code, global-code, function-code, arguments-object, expressions-1…13, statements-1…5, types-1 — these filenames *are* the roadmap). Prior successes spent the first 5 minutes doing 14–57 inspects; that's fine, but it must end by ~min 15.
+
+**Phase 1 — Skeleton + harness validation (15–25 min).** Minimal `run()` with correct output/error plumbing, stub lexer/parser/eval, typecheck clean. Run the full suite; expect **exactly ~314** (the baseline all three skeletons produced). This verifies the harness end-to-end and banks the negative tests. If you get 261, your plumbing/contract is wrong (ctl-2) — fix that before building features.
+
+**Phase 2 — Land the core in one push (25–35 min).** Write the whole interpreter: lexer (ASI, regex literals, escapes, numerics), full ES5 grammar parser, evaluator (scope chains, closures, `this`, prototype chains, coercion/ToPrimitive, standard built-ins). Then — critical — **run the full suite immediately.** Target ≥1800–2300 on that run (ctl-3 2344, ctl-8 2271, ctl-5 2174, ctl-1 1723; ctl-4/ctl-9 prove 2022–2227 also works). If you're still at 314, the core didn't land (ctl-6's permanent state); keep going until the count explodes.
+
+**Phase 3 — Tail loop (35–55 min).** Every cycle is: full suite (~1–2 min) → read the *failing file names* → fix the highest-yield file (grammar-level failures like ASI/precedence cascade across whole files, e.g., "expressions-3 372/380", "statements-5 236/237" patterns) → re-run that file → full suite. Expected rates: ~200–450 per cycle early, ~10–30 per cycle in the last ~100 tests. Use the acceptance files as your checklist; do **not** pop out to scratch test files for individual cases — that's the ctl-2 trap.
+
+**Phase 4 — Freeze and verify (55–65 min).** Once green: run typecheck, then the full/graded suite 2–3 more consecutive times, and **make zero structural changes** (no renames, no moves) — ctl-6's 0/2367 exists because a refactor was never re-verified. If you touch anything, re-verify fully.
+
+**Standing rules (each is the inverse of a documented failure):**
+1. **Never let more than ~10 minutes pass without a full-suite run once the core exists.** ctl-2: 54-min gap → 255 tests short at the cap. ctl-6: 50+ min gap → catastrophic break undetected. Every success ran it nearly every 2–5 min.
+2. **Never accept a module-local test as evidence about the acceptance entry** (ctl-6's `dbg 1/1` @69 while the entry was already broken).
+3. **Every structural change is followed immediately by full suite + typecheck** (ctl-6).
+4. **If a score dips, re-run immediately and don't continue until it recovers** (ctl-7 recovered 106→37→108 in one minute; the failures never re-ran).
+5. **Watch the clock against the known trajectory.** If you're not ≥~2300 by minute 40 you're below the success curve; switch to full-suite-only grinding. If you're at ~1600 at min 70, the math is already against you — ctl-2's end-game proved +500/11 min is achievable, but that must happen at min 40, not min 74.
+6. **When the suite is green, stop.** ctl-5 burned 9 post-green minutes churning on auxiliary tests; the graded state was already achieved at min 40.
+
+The two failures bracket the whole lesson: ctl-6 shows you can destroy everything with one unverified change; ctl-2 shows you can be one focused hour away from done and still lose. The seven successes all ran the same loop — build fast, land a complete core, then let the suite's red/yellow/green counts dictate every next edit.
