@@ -35,6 +35,10 @@ for B in "$@"; do
   cat $(find $HOME/control-runs/$B/home/.pi/agent/sessions -name '*.jsonl' | sort) > $D/transcript.jsonl
 done
 
+KLOG=$HOME/control-runs/kernel-logs/$E.md
+if [ -f "$KLOG" ]; then cp "$KLOG" $R/workspace/KERNEL-LOG.md
+else echo "# Kernel intervention log — $E cohort: no interventions." > $R/workspace/KERNEL-LOG.md; fi
+
 cat > $R/workspace/MANDATE.md <<'MD'
 # Retrospective — @ENTRY@
 
@@ -45,6 +49,10 @@ isolated worlds, from scratch. Everything about those runs is in runs/:
     runs/<builder>/transcript.jsonl    the builder's full session, as it ran
     runs/<builder>/src/, package.json  the code it shipped
     runs/<builder>/gate.json           its pristine-gate verdicts
+
+KERNEL-LOG.md records the platform's interventions during the runs (killed
+wedged processes show up in transcripts as tool calls returning no output) —
+read it before attributing those events.
 
 The grading bridge and the full corpus are in bridge/ and test262/ (see
 bridge/README.md). The corpus is the requirement; the plan is how we intend
@@ -101,7 +109,7 @@ s={"filesystem":{
                 +[f"{H}/control-runs/{d}" for d in os.listdir(f"{H}/control-runs") if d!="$NAME"],
     "allowWrite":[R,"/tmp"],
     "denyWrite":[f"{R}/workspace/test262",f"{R}/workspace/bridge",f"{R}/workspace/runs",
-                 f"{R}/workspace/MANDATE.md",f"{R}/settings.json"]},
+                 f"{R}/workspace/MANDATE.md",f"{R}/workspace/KERNEL-LOG.md",f"{R}/settings.json"]},
    "network":{"allowedDomains":["api.deepseek.com"],"deniedDomains":[]}}
 open(f"{R}/settings.json","w").write(json.dumps(s,indent=1))
 print("retro world composed:", R)

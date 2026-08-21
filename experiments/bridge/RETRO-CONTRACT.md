@@ -37,6 +37,7 @@ plan, and authors the next entry's brief.
 | path | content | mutability |
 |---|---|---|
 | `MANDATE.md` | the assignment (this contract's agent-facing form) | read-only |
+| `KERNEL-LOG.md` | the kernel's intervention log for the cohort (killed wedged processes, isolation notes) — so transcript anomalies are attributable | read-only |
 | `plan/` | full-history git clone of the canonical plan repo (PLAN.md + every entry dir so far) | **writable** working tree — the kernel commits it back as the next revision |
 | `runs/<builder>/transcript.jsonl` | the builder's full pi session | read-only |
 | `runs/<builder>/src/`, `package.json` | the code as shipped | read-only |
