@@ -1,4 +1,4 @@
-# RETRO-CONTRACT v1.2 — step D: retrospective / replan
+# RETRO-CONTRACT v1.3 — step D: retrospective / replan
 
 The retrospective closes a pipeline cycle: a cohort has executed one plan
 entry in hard-scoped worlds, and the kernel has graded every survivor against
@@ -44,6 +44,7 @@ plan, and authors the next entry's brief.
 | `runs/<builder>/gate.json` | the kernel's pristine-gate verdicts for that builder | read-only |
 | `bridge/` | UNFILTERED: run.mjs, stub, full cases.json, real README, generate.mjs | read-only |
 | `test262/` | the full corpus + harness | read-only |
+| `trunk-before/` | the trunk the builders started from (absent on greenfield cycles) | read-only |
 
 Same sandbox profile as builder worlds (deny-read of operator secrets and all
 sibling run dirs; network = api.deepseek.com only; 90-minute cap). Unlike
