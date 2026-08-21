@@ -1,40 +1,57 @@
-# Plan contract
+# Plan contract (v3)
 
 This workspace contains a problem package — a product statement (`PRODUCT.md`),
 a public API contract (`contract.d.ts`), the raw test corpus (`test262/`) —
-and a completed **bridge** (`bridge/`): a mechanical inventory of every corpus
-case with its metadata (`bridge/cases.json`), a runner that grades any subject
-against any case list (`bridge/run.mjs`, see `bridge/README.md`), and a stub
-subject.
+and a completed **bridge** (`bridge/`): the full mechanical case inventory with
+metadata (`bridge/cases.json`) and a runner that grades any subject against
+any case list (`bridge/run.mjs`; see `bridge/README.md`).
 
-Your job is NOT to build the product and NOT to modify the bridge. Your job is
-to **plan the project**: the product will be built over many separate efforts,
-and each effort needs a bounded, verifiable scope.
+Your job is NOT to build the product. Your job is to **plan the project**.
 
-Deliverables:
+## Platform facts to plan around
 
-1. **`plan/PLAN.md`** — the whole-project plan: a sequence of phases from
-   nothing to maximal conformance with the corpus. For each phase: its scope,
-   its rationale, roughly how its case set will be derived from the inventory,
-   and its verifiable gate. The plan is a living document — later phases may
-   be revised as the project learns — so invest most of your precision in the
-   earliest phases.
-2. **`plan/phase-1/cases.txt`** — phase one, concretely: the case ids (one per
-   line, ids exactly as in `bridge/cases.json`) that constitute phase one's
-   acceptance set. Phase one should be a coherent, contained vertical slice:
-   achievable by a single focused effort, verifiable end-to-end through the
-   bridge, and a sound foundation for everything after it.
-3. **`plan/phase-1/BRIEF.md`** — the assignment document for whoever executes
-   phase one. IMPORTANT: it will be that builder's **entire world** — they
-   will see only this brief, the contract, and phase one's cases. Write it as
-   a complete, self-contained product assignment: what to build, how it is
-   judged (all phase-one cases pass via the bridge runner), and whatever
-   corpus knowledge they need. Do not mention this plan, later phases, or the
-   wider corpus.
+- The product is built by a long sequence of separate, narrowly scoped efforts
+  (**entries**). Each entry is executed by a single agent, alone, in one
+  session under a fixed wall-clock cap (90 minutes). An entry that does not
+  complete is re-planned after a retrospective; over-ambitious entries waste a
+  cycle, so size them for one focused effort.
+- The product is one npm package structured internally as **ES modules**. A
+  module is the **unit of work visibility**: the agent executing an entry sees,
+  in full, only the module that entry creates or reopens — plus the declared
+  public interfaces (never the implementations) of all other modules, plus any
+  **integration seams** the entry names. This is how effort scope stays
+  constant as the codebase grows, which is the central design requirement of
+  the whole project. Design module boundaries as real abstractions: an
+  interface should hide its module's decisions, and prefer extension points so
+  that wiring a new module into the product collapses to the composition root.
+- After each entry the platform banks the winning workspace by overlaying its
+  editable paths onto the product trunk. The gate is monotone: **every
+  previously accepted case must still pass, plus the entry's new cases.**
+  Every entry must light up a nonzero set of new cases — construction the
+  scoreboard cannot see is not a valid entry.
+- Modules may be reopened and expanded by later entries; boundaries may be
+  revised by retrospectives. The plan is a living document: invest precision
+  in the earliest entries; later entries are re-derived as the project learns.
+
+## Deliverables
+
+1. **`plan/PLAN.md`** — the plan of record:
+   - **The module map**: every module the product will need as far as you can
+     see — name, purpose, a sketch of its public interface, dependencies.
+   - **The entry sequence**: an ordered list. Each entry: the module it
+     creates or reopens; its integration seams (files outside the module it
+     may edit — keep minimal); a one-paragraph brief; and the recipe by which
+     its case-delta derives from the inventory.
+2. **`plan/entry-1/cases.txt`** — entry one's case ids, one per line, exactly
+   as in `bridge/cases.json`.
+3. **`plan/entry-1/BRIEF.md`** — the assignment for entry one's builder. It
+   will be that builder's **entire world**: write it complete and
+   self-contained; pin the module's public interface precisely; name the
+   seams; state the gate (a bridge run over `cases.txt` — give the command).
+   Reference only files that will exist in the builder's scoped world. Do not
+   mention this plan, later entries, or the wider corpus.
 
 Constraints: `test262/`, `bridge/`, `PRODUCT.md`, and `contract.d.ts` are
 read-only. Every id in `cases.txt` must exist in `bridge/cases.json`.
 
-Done = the three deliverables exist; `plan/phase-1/cases.txt` is non-empty and
-every id resolves; `PLAN.md` covers the road from phase one to maximal
-conformance.
+Done = the three deliverables exist and are consistent.
