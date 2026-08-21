@@ -20,7 +20,8 @@ NAME=$1; P=$2; E=$3; shift 3
 NEXT="entry-$(( ${E#entry-} + 1 ))"
 R=$HOME/control-runs/$NAME
 
-rm -rf $R && mkdir -p $R/workspace/runs $R/workspace/bridge $R/home/.pi/agent
+rm -rf $R && mkdir -p $R/workspace/runs $R/workspace/bridge $R/home/.pi/agent/extensions
+cp ~/src/trireme/experiments/kernel/extensions/trireme-shell.ts $R/home/.pi/agent/extensions/
 git clone -q --no-hardlinks $HOME/control-runs/plan $R/workspace/plan
 cp -al $P/test262 $R/workspace/test262
 cp -a $P/bridge/run.mjs $P/bridge/stub.mjs $P/bridge/README.md $P/bridge/generate.mjs $R/workspace/bridge/
