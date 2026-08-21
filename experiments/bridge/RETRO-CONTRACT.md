@@ -1,4 +1,4 @@
-# RETRO-CONTRACT v1.1 — step D: retrospective / replan
+# RETRO-CONTRACT v1.2 — step D: retrospective / replan
 
 The retrospective closes a pipeline cycle: a cohort has executed one plan
 entry in hard-scoped worlds, and the kernel has graded every survivor against
@@ -37,7 +37,7 @@ plan, and authors the next entry's brief.
 | path | content | mutability |
 |---|---|---|
 | `MANDATE.md` | the assignment (this contract's agent-facing form) | read-only |
-| `plan/` | the plan of record, verbatim (PLAN.md + every entry dir so far) | **writable** — becomes the next plan of record |
+| `plan/` | full-history git clone of the canonical plan repo (PLAN.md + every entry dir so far) | **writable** working tree — the kernel commits it back as the next revision |
 | `runs/<builder>/transcript.jsonl` | the builder's full pi session | read-only |
 | `runs/<builder>/src/`, `package.json` | the code as shipped | read-only |
 | `runs/<builder>/gate.json` | the kernel's pristine-gate verdicts for that builder | read-only |
@@ -57,7 +57,9 @@ builders, not to the roles that steer them.
    rationale; notes anything worth stealing from the losers; records any
    boundary-revision scheduling call and its reasoning.
 3. Revised `plan/PLAN.md` — reconciled with what was actually built; the plan
-   is a living document and the retro owns it for this cycle.
+   is a living document and the retro owns it for this cycle — plus
+   `REVISION.md` at the workspace root: a short note of what changed in the
+   plan and why, which becomes the canonical commit message.
 4. `plan/<next-entry>/cases.txt` + `plan/<next-entry>/BRIEF.md` — the next
    entry, derived per the plan's conventions, sized for one capped session,
    written for a builder who sees only its own world. Briefs may describe
@@ -72,8 +74,9 @@ builders, not to the roles that steer them.
   `pass`; a red trunk voids the bank and the cycle re-runs or escalates to
   the operator.
 - **Archive**: builder run dirs are never deleted or modified.
-- **Handoff**: the retro workspace's `plan/` + the banked trunk become the
-  compose source for the next entry's builder worlds (overlay/trunk compose
-  variant).
+- **Handoff** (`commit-plan.sh`): the revised plan working tree is committed
+  to the canonical repo (message = REVISION.md, author = the retro run);
+  the canonical repo + the banked trunk become the compose source for the
+  next entry's builder worlds (overlay/trunk compose variant).
 - The next-entry `cases.txt` ids must all exist in `bridge/cases.json`;
   previously accepted cases stay in the gate forever (monotone gate).
