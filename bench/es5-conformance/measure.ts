@@ -43,7 +43,7 @@ export function score(run: (s: string) => EvalResult, harness: string, cases: Ca
  * an interpreter under test may not terminate on a case it has never seen.
  */
 export async function scoreArtifact(
-  runId: string,
+  target: string, // a run id, or a file:// URL of an entry module (e.g. a workspace's src/index.ts)
   harness: string,
   cases: Case[],
   timeoutMs = 10_000,
@@ -57,7 +57,7 @@ export async function scoreArtifact(
     const startAt = next;
     const outcome = await new Promise<"done" | "stalled">((resolve) => {
       const worker = new Worker(new URL("./measure-worker.ts", import.meta.url), {
-        workerData: { runId, harness, cases, startAt },
+        workerData: { target, harness, cases, startAt },
       });
       let timer: NodeJS.Timeout;
       const arm = () => {

@@ -28,6 +28,9 @@ const GRADES = {
   "ctl-7": { outcome: "finished by itself", graded: "2367/2367 passing, typecheck ok", wall: 62.3, cost: 0.81 },
   "ctl-8": { outcome: "finished by itself", graded: "2367/2367 passing, typecheck ok", wall: 42.6, cost: 0.49 },
   "ctl-9": { outcome: "finished by itself", graded: "2367/2367 passing, typecheck ok", wall: 57.2, cost: 0.71 },
+  "ctl-p1": { outcome: "finished by itself", graded: "2367/2367 passing, typecheck ok", wall: 70.8, cost: 0.53 },
+  "ctl-p2": { outcome: "finished by itself", graded: "2367/2367 passing, typecheck ok", wall: 57.4, cost: 0.65 },
+  "ctl-p3": { outcome: "finished by itself", graded: "2367/2367 passing, typecheck ok", wall: 65.4, cost: 0.44 },
 };
 
 function findSession(runDir) {
