@@ -4,18 +4,19 @@
 #   compose-retro-world.sh <run-name> <plan-workspace> <entry-name> <builder-run>...
 #   e.g. compose-retro-world.sh retro-e1 ~/control-runs/planner-2/workspace entry-1 entry1-1 entry1-2 entry1-3
 #
-# Spec: experiments/bridge/RETRO-CONTRACT.md. The retro sees everything the
-# planner saw (unfiltered bridge + full corpus) plus the cohort's runs;
-# plan/ and trunk/ are its writable deliverable surfaces. Each <builder-run>
-# dir must contain gate.json (the kernel's pristine-gate verdicts, persisted
-# there after grading). test262 and cases.json are hardlinked (cp -al) for
-# speed; srt denies writes to them.
+# Spec: experiments/bridge/RETRO-CONTRACT.md (v1.1: the retro names the
+# winner, never touches code — banking is kernel work, see bank-trunk.sh).
+# The retro sees everything the planner saw (unfiltered bridge + full corpus)
+# plus the cohort's runs; plan/ is its writable deliverable surface. Each
+# <builder-run> dir must contain gate.json (the kernel's pristine-gate
+# verdicts, persisted there after grading). test262 and cases.json are
+# hardlinked (cp -al) for speed; srt denies writes to them.
 set -euo pipefail
 NAME=$1; P=$2; E=$3; shift 3
 NEXT="entry-$(( ${E#entry-} + 1 ))"
 R=$HOME/control-runs/$NAME
 
-rm -rf $R && mkdir -p $R/workspace/runs $R/workspace/trunk $R/workspace/bridge $R/home/.pi/agent
+rm -rf $R && mkdir -p $R/workspace/runs $R/workspace/bridge $R/home/.pi/agent
 cp -a $P/plan $R/workspace/plan
 cp -al $P/test262 $R/workspace/test262
 cp -a $P/bridge/run.mjs $P/bridge/stub.mjs $P/bridge/README.md $P/bridge/generate.mjs $R/workspace/bridge/
@@ -43,25 +44,24 @@ isolated worlds, from scratch. Everything about those runs is in runs/:
 
 The grading bridge and the full corpus are in bridge/ and test262/ (see
 bridge/README.md). The corpus is the requirement; the plan is how we intend
-to conquer it. Deliver, in this order:
+to conquer it.
+
+You are the engineering judgment of this project, not one of its builders:
+you read code to judge it, but you never write, copy, or restructure code —
+your deliverables are prose and the plan. Deliver, in this order:
 
 1. RETRO.md — your assessment of @ENTRY@: what the runs reveal about the
    plan, the brief, the process, the platform. Direct and specific.
 
-2. DECISION.md and trunk/ — pick exactly ONE of the codebases to become the
-   trunk that everything later builds on; copy it into trunk/ (src/ plus
-   package.json). DECISION.md records which one and why — the rationale is
+2. DECISION.md — name exactly ONE of the builder runs as the winner. Its
+   codebase will be banked verbatim, by the platform, as the trunk that
+   everything later builds on. Record which run and why — the rationale is
    as much a deliverable as the pick. The other runs stay archived; if one
    contains something specifically worth stealing later, say so.
-   The plan may schedule a boundary revision at this retrospective (see
-   PLAN.md); performing it now (editing trunk/) or deferring it is your
-   call — record the reasoning. Either way the trunk must stay green:
-
-       node bridge/run.mjs --subject trunk/<entry point> \
-           --cases plan/@ENTRY@/cases.txt --out /tmp/trunk-gate.json
-
-   must report every id "pass". Run it yourself before finishing, and state
-   the exact subject path in DECISION.md — the kernel re-runs this check.
+   If the plan schedules a boundary revision at this retrospective (see
+   PLAN.md), whether and when it happens is your call — but it happens as
+   work you schedule in the revised plan (an entry's scope), never as work
+   you perform. Record the call and its reasoning.
 
 3. A revised plan/PLAN.md — the plan is a living document and you own it
    this cycle. Reconcile it with what was actually built; fold in whatever
