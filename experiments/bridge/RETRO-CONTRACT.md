@@ -1,4 +1,4 @@
-# RETRO-CONTRACT v1.6 — step D: retrospective / replan
+# RETRO-CONTRACT v1.7 — step D: retrospective / replan
 
 The retrospective closes a pipeline cycle: a cohort has executed one plan
 entry in hard-scoped worlds, and the kernel has graded every survivor against
@@ -80,6 +80,18 @@ builders, not to the roles that steer them.
    layers; the stack's delta lights at the top. Briefs may describe trunk
    internals (what to reopen, where things live) — that is the retro's
    descriptive, not operative, relationship to code.
+
+## The challenge channel (v1.7)
+
+Builders may not exclude cases; they may CHALLENGE them: a case believed
+impossible within the declared surface stays red and is filed in the
+build's CHALLENGES.md with evidence. The retro adjudicates — accepted
+challenges revise the plan's case list (rationale in REVISION.md);
+rejected challenges weigh against the build. Precedents: entry6-2's
+honest-red challenge (accepted, banked); entry5-1's false claim
+(rejected, disqualifying); entry6-1/entry6-3's alternative — silently
+implementing around the frozen surface via runtime prototype surgery —
+is forgery, not a challenge, and is disqualifying on method.
 
 ## Kernel enforcement (after the session)
 

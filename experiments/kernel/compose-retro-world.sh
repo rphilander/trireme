@@ -129,6 +129,15 @@ revised plan, and the next brief:
   layer, mechanically gate-checked between layers). You judge the
   completed stacks. The platform REJECTS a phase declaration that puts
   more than one module's work in a single session's editable set.
+- **The challenge channel (carry this into every brief you write)**:
+  builders who conclude a listed case cannot pass within their declared
+  surface must keep it red and file it in a CHALLENGES.md at their
+  workspace root — case ids, the claim (mis-curated / impossible-in-scope
+  / spec-conflict), and evidence. Builders never exclude cases themselves;
+  the gate grades challenged cases red. YOU adjudicate challenges: accepted
+  → revise the case list and reassign (with rationale in REVISION.md);
+  rejected → the false claim weighs against that build's assessment.
+  Honest reds with a correct challenge outrank dishonest greens.
 - **Declaring a multi-layer phase** (so the platform can run it): put the
   stack's delta in plan/<phase>/cases.txt as usual, and give each layer a
   directory — plan/<phase>/layer-1/BRIEF.md + layer-1/editable.txt,
