@@ -95,7 +95,7 @@ export async function runDriver(config, ctx, { outDir }) {
 
 // ---- CLI ------------------------------------------------------------------
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
   const out = {};
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i].replace(/^--/, "");

@@ -55,12 +55,42 @@ const exists = (p) => { try { fs.accessSync(p); return true; } catch { return fa
 const readOr = (p, fallback = null) => { try { return fs.readFileSync(p, "utf8"); } catch { return fallback; } };
 
 function readRunLog(runDir) {
+  // run.log carries the session's stdout and the exit line — NOTHING else.
+  // In particular the ambient stamps are NOT here (they live in the session
+  // transcripts; see sessionFacts). Reading spend from run.log was a live
+  // fact-quality bug masked by unfaithful stubs — keep the two sources
+  // separate and the stubs honest.
   const log = readOr(path.join(runDir, "run.log"), "");
   const exits = [...log.matchAll(/^exit=(\d+)/gm)];
-  const exit = exits.length ? Number(exits[exits.length - 1][1]) : null;
-  const spends = [...log.matchAll(/\$([0-9]+(?:\.[0-9]+)?) spent/g)];
-  const spend = spends.length ? spends[spends.length - 1][1] : null;
-  return { exit, spend };
+  return { exit: exits.length ? Number(exits[exits.length - 1][1]) : null };
+}
+
+// Span + spend facts from a run dir's session transcripts. The ambient
+// stamp's dollar figure is cumulative per session, so spend = max, and a
+// lineage's total is the SUM of its layers' maxima (summed by callers).
+export function sessionFacts(runDirPath) {
+  const sess = path.join(runDirPath, "home/.pi/agent/sessions");
+  let t0 = null, t1 = null, spend = null;
+  if (!exists(sess)) return { startedAt: null, endedAt: null, spend: null };
+  for (const f of fs.readdirSync(sess, { recursive: true })) {
+    const fp = path.join(sess, String(f));
+    if (!fp.endsWith(".jsonl") || !fs.statSync(fp).isFile()) continue;
+    const txt = fs.readFileSync(fp, "utf8");
+    for (const m of txt.matchAll(/"timestamp":(\d{10,})/g)) {
+      const t = Number(m[1]);
+      if (t0 == null || t < t0) t0 = t;
+      if (t1 == null || t > t1) t1 = t;
+    }
+    for (const m of txt.matchAll(/\$([0-9]+(?:\.[0-9]+)?) spent/g)) {
+      const v = Number(m[1]);
+      if (spend == null || v > spend) spend = v;
+    }
+  }
+  return {
+    startedAt: t0 == null ? null : new Date(t0).toISOString(),
+    endedAt: t1 == null ? null : new Date(t1).toISOString(),
+    spend: spend == null ? null : spend.toFixed(3),
+  };
 }
 
 function editablePaths(planRepo, entry) {
@@ -118,11 +148,11 @@ export function makeEffects(ctx) {
             } else {
               error = `run-lineage exit=${r.code}, no lineage-status (${r.out.trim().slice(-200)})`;
             }
-            // spend: sum of the per-layer sessions' final stamps
+            // spend: sum of the per-layer sessions' cumulative stamps
             let spend = null;
             let sum = 0, seen = false;
             for (let i = 1; i <= a.layers; i++) {
-              const { spend: s } = readRunLog(path.join(CR, `${name}-L${i}`));
+              const { spend: s } = sessionFacts(path.join(CR, `${name}-L${i}`));
               if (s != null) { sum += Number(s); seen = true; }
             }
             if (seen) spend = sum.toFixed(3);
@@ -144,7 +174,8 @@ export function makeEffects(ctx) {
             ctx.logLine(`run ${name}: launching (cap ${a.capS}s)`);
             await sh("bash", [script("launch-world.sh"), name, String(a.capS)], { timeoutS: a.capS + 900 });
             const endedAt = new Date().toISOString();
-            const { exit, spend } = readRunLog(runDir(name));
+            const { exit } = readRunLog(runDir(name));
+            const { spend } = sessionFacts(runDir(name));
             const error = exists(path.join(runDir(name), "workspace/src")) ? null : "no workspace/src after run";
             runs.push({ name, exit, capOut: exit === 124, spend, startedAt, endedAt, lineage: null, error });
           })
@@ -243,7 +274,8 @@ export function makeEffects(ctx) {
     async LAUNCH_RETRO(a) {
       ctx.logLine(`retro ${a.retro}: launching (cap ${a.capS}s)`);
       await sh("bash", [script("launch-world.sh"), a.retro, String(a.capS)], { timeoutS: a.capS + 900 });
-      const { exit, spend } = readRunLog(runDir(a.retro));
+      const { exit } = readRunLog(runDir(a.retro));
+      const { spend } = sessionFacts(runDir(a.retro));
       return { exit, capOut: exit === 124, spend };
     },
 
@@ -277,29 +309,6 @@ export function makeEffects(ctx) {
     async REUSE_COHORT(a) {
       // --from-grading: the cohort already ran (e.g. before an escalation);
       // recover the same facts RUN_COHORT would have returned, from disk.
-      const sessionSpan = (dir) => {
-        // first/last event timestamps across the run's session files
-        let t0 = null, t1 = null;
-        const sess = path.join(dir, "home/.pi/agent/sessions");
-        if (!exists(sess)) return { startedAt: null, endedAt: null };
-        for (const f of fs.readdirSync(sess, { recursive: true })) {
-          const fp = path.join(sess, String(f));
-          if (!fp.endsWith(".jsonl") || !fs.statSync(fp).isFile()) continue;
-          const lines = fs.readFileSync(fp, "utf8").split("\n").filter(Boolean);
-          for (const line of [lines[0], lines[lines.length - 1]]) {
-            const m = line?.match(/"timestamp":(\d{10,})/);
-            if (m) {
-              const t = Number(m[1]);
-              if (t0 == null || t < t0) t0 = t;
-              if (t1 == null || t > t1) t1 = t;
-            }
-          }
-        }
-        return {
-          startedAt: t0 ? new Date(t0).toISOString() : null,
-          endedAt: t1 ? new Date(t1).toISOString() : null,
-        };
-      };
       const runs = a.runs.map((name) => {
         if (a.layered) {
           const status = readOr(path.join(CR, `${name}.lineage-status`), "").trim();
@@ -313,18 +322,21 @@ export function makeEffects(ctx) {
           } else {
             error = "no lineage-status on disk";
           }
-          let sum = 0, seen = false;
+          let sum = 0, seen = false, t0 = null, t1 = null;
           for (let i = 1; i <= a.layers; i++) {
-            const { spend } = readRunLog(path.join(CR, `${name}-L${i}`));
-            if (spend != null) { sum += Number(spend); seen = true; }
+            const f = sessionFacts(path.join(CR, `${name}-L${i}`));
+            if (f.spend != null) { sum += Number(f.spend); seen = true; }
+            if (f.startedAt && (t0 == null || f.startedAt < t0)) t0 = f.startedAt;
+            if (f.endedAt && (t1 == null || f.endedAt > t1)) t1 = f.endedAt;
           }
-          return { name, ...sessionSpan(path.join(CR, `${name}-L1`)), exit: null, capOut: false, spend: seen ? sum.toFixed(3) : null, lineage, error };
+          return { name, startedAt: t0, endedAt: t1, exit: null, capOut: false, spend: seen ? sum.toFixed(3) : null, lineage, error };
         }
         if (!exists(path.join(runDir(name), "workspace/src"))) {
           return { name, error: "no run on disk to reuse" };
         }
-        const { exit, spend } = readRunLog(runDir(name));
-        return { name, exit, capOut: exit === 124, spend, ...sessionSpan(runDir(name)), lineage: null, error: null };
+        const { exit } = readRunLog(runDir(name));
+        const { startedAt, endedAt, spend } = sessionFacts(runDir(name));
+        return { name, exit, capOut: exit === 124, spend, startedAt, endedAt, lineage: null, error: null };
       });
       return { runs };
     },

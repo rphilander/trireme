@@ -8,6 +8,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { runDriver } from "../driver.mjs";
+import { sessionFacts } from "../effects.mjs";
 
 const SCRATCH = process.env.SCRATCHPAD_DIR || os.tmpdir();
 
@@ -76,7 +77,12 @@ exit ${opts.composeExit ?? 0}
 ${rec}
 R=${CR}/$1
 mkdir -p $R/home/.pi/agent/sessions
-echo '{"role":"assistant"}' > $R/home/.pi/agent/sessions/2026-08-22T00-00-00-000Z_$1.jsonl
+# REALITY (stub fidelity): ambient stamps live ONLY in session transcripts;
+# run.log carries stdout + the exit line, never stamps.
+{ echo '{"type":"meta","timestamp":1787414000000}'
+  echo '{"type":"msg","timestamp":1787414060000,"content":[{"type":"text","text":"⏱ took 2s · 88:00 of 90:00 remaining · $0.055 spent"}]}'
+  echo '{"type":"msg","timestamp":1787414120000,"content":[{"type":"text","text":"⏱ took 1s · 87:00 of 90:00 remaining · $0.123 spent"}]}'
+} > $R/home/.pi/agent/sessions/2026-08-22T00-00-00-000Z_$1.jsonl
 if [ -f ${SB}/write-challenges ] && [ "$1" != "retro-e9" ]; then
   mkdir -p $R/workspace && echo "# CHALLENGES" > $R/workspace/CHALLENGES.md
 fi
@@ -89,7 +95,7 @@ if [ "$1" = "retro-e9" ]; then
   echo brief > $W/plan/entry-10/BRIEF.md
   echo "src/engine/n.ts" > $W/plan/entry-10/editable.txt
 fi
-{ echo '⏱ took 2s · 88:00 remaining · $0.123 spent'; echo "exit=0"; } >> $R/run.log
+echo "exit=0" >> $R/run.log
 `, { exec: true });
 
   write(path.join(K, "run-lineage.sh"), `#!/bin/bash
@@ -100,8 +106,10 @@ for i in 1 2; do
   mkdir -p $R/workspace/src/engine $R/home/.pi/agent/sessions/relay
   echo "layer $i of $NAME" > $R/workspace/src/engine/index.ts
   echo '{}' > $R/workspace/package.json
-  echo '{"layer":'$i'}' > $R/home/.pi/agent/sessions/2026-08-22T0$i-00-00-000Z_$NAME-L$i.jsonl
-  { echo '⏱ took 2s · 88:00 remaining · $0.200 spent'; echo "exit=0"; } >> $R/run.log
+  { echo '{"type":"meta","timestamp":1787414'$i'00000}'
+    echo '{"type":"msg","timestamp":1787414'$i'50000,"content":[{"type":"text","text":"⏱ took 2s · 80:00 of 90:00 remaining · $0.200 spent"}]}'
+  } > $R/home/.pi/agent/sessions/2026-08-22T0$i-00-00-000Z_$NAME-L$i.jsonl
+  echo "exit=0" >> $R/run.log
 done
 if [ -f ${SB}/halt-$NAME ]; then
   echo "HALTED layer=1" > ${CR}/$NAME.lineage-status; exit 1
@@ -159,6 +167,11 @@ test("seam: single-layer happy path with a load flake — full cycle, correct ar
   // the stale pristine world.
   assert.ok(calls.some((c) => c === `bank-trunk.sh entry-9 entry9-2 ${sb.CR}/retro-e9/workspace src/engine/index.ts`),
     "bank-trunk must receive the retro workspace as plan-workspace: " + calls.filter(c=>c.startsWith("bank-trunk")).join(" | "));
+
+  // live runs: spend comes from session transcripts (run.log has no stamps)
+  assert.equal(state.runs[0].spend, "0.123");
+  const klogSpend = fs.readFileSync(path.join(sb.CR, "kernel-logs/entry-9.md"), "utf8");
+  assert.match(klogSpend, /\$0\.123/);
 
   // gate-cases = ACCEPTED ∪ entry delta, sorted unique
   const gc = fs.readFileSync(path.join(sb.CR, "entry9-1/gate-cases.txt"), "utf8").trim().split("\n");
@@ -268,6 +281,32 @@ test("seam: --from-grading reuses the cohort on disk — zero builder launches",
   assert.ok(!calls.some((c) => c.startsWith("compose-module-world.sh")), "no builder compose on reuse");
   assert.ok(!calls.some((c) => /^launch-world\.sh entry9-/.test(c)), "no builder launch on reuse");
   assert.ok(calls.some((c) => c === "launch-world.sh retro-e9 60"), "retro still runs live");
-  // reused runs carry spend recovered from run.log
+  // reused runs carry spend AND a real wall span recovered from transcripts
   assert.equal(second.runs[0].spend, "0.123");
+  assert.equal(second.runs[0].startedAt, new Date(1787414000000).toISOString());
+  assert.equal(second.runs[0].endedAt, new Date(1787414120000).toISOString());
+  assert.notEqual(second.runs[0].startedAt, second.runs[0].endedAt, "wall span must not collapse");
+});
+
+test("unit: sessionFacts — span + cumulative spend from realistic transcripts", () => {
+  const dir = fs.mkdtempSync(path.join(SCRATCH, "sf-"));
+  const sess = path.join(dir, "home/.pi/agent/sessions/sub");
+  fs.mkdirSync(sess, { recursive: true });
+  // realistic shape: meta first, stamps mid-stream, LAST LINE HAS NO TIMESTAMP
+  // (the case that collapsed the wall span in cycles 9/10)
+  fs.writeFileSync(path.join(sess, "a.jsonl"), [
+    '{"type":"meta","timestamp":1787414000000}',
+    '{"type":"msg","timestamp":1787414050000,"content":[{"type":"text","text":"⏱ took 2s · 88:00 of 90:00 remaining · $0.041 spent"}]}',
+    '{"type":"msg","timestamp":1787414090000,"content":[{"type":"text","text":"⏱ took 1s · 87:00 of 90:00 remaining · $0.087 spent"}]}',
+    '{"type":"summary","note":"no timestamp field here"}',
+  ].join("\n") + "\n");
+  const f = sessionFacts(dir);
+  assert.equal(f.startedAt, new Date(1787414000000).toISOString());
+  assert.equal(f.endedAt, new Date(1787414090000).toISOString());
+  assert.equal(f.spend, "0.087"); // cumulative stamp: max, not sum
+});
+
+test("unit: sessionFacts — empty/missing sessions yield nulls, never throws", () => {
+  const dir = fs.mkdtempSync(path.join(SCRATCH, "sf-"));
+  assert.deepEqual(sessionFacts(dir), { startedAt: null, endedAt: null, spend: null });
 });

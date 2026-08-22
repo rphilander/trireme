@@ -412,10 +412,10 @@ function finishGrading(state) {
 
 export function renderKernelLog(state) {
   const L = [];
-  L.push(`# Kernel log — ${state.entry} cohort (unattended driver v1)`);
+  L.push(`# Kernel log — ${state.entry} cohort (unattended cycle driver)`);
   L.push("");
   L.push(
-    `Driver v1 ran this cohort unattended. It has no intervention capability;` +
+    `The cycle driver ran this cohort unattended. It has no intervention capability;` +
       ` the only enforcement is the per-session wall cap (${state.config.capS}s` +
       `${state.layered ? " per layer" : ""}). Facts below are mechanical observations.`
   );
