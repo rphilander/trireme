@@ -91,9 +91,15 @@ your deliverables are prose and the plan. Deliver, in this order:
    with your note as the commit message, under your name. Leave committing
    to the platform; the canonical repository is not yours to push to.
 
-4. plan/@NEXT@/cases.txt and plan/@NEXT@/BRIEF.md — the next entry, derived
-   per the plan's conventions, sized for one capped session, written for a
-   builder who will see the trunk, the brief, and nothing else.
+4. The next phase, plan/@NEXT@/ — derived per the plan's conventions:
+   cases.txt (the phase's delta) at the phase root, always. A single-layer
+   phase adds BRIEF.md and editable.txt (the editable paths, one per line)
+   at the phase root. A multi-layer phase instead adds layer-1/BRIEF.md +
+   layer-1/editable.txt, layer-2/..., in build order (see the vocabulary
+   section below). Every brief is sized for one capped session and written
+   for a builder who sees only that world; editable.txt is the machine
+   contract the platform composes the world from — the brief's prose and
+   editable.txt must agree.
 
 Work only inside this directory.
 
@@ -122,7 +128,8 @@ revised plan, and the next brief:
   layer's editable paths, one per line), layer-2/..., in build order.
   Each layer's brief is that agent's entire assignment; write it for a
   builder who sees only that layer's world. A single-layer phase keeps
-  BRIEF.md at the phase root, exactly as before.
+  BRIEF.md at the phase root and declares its editable paths in a root
+  editable.txt the same way.
 MD
 sed -i "s/@ENTRY@/$E/g; s/@NEXT@/$NEXT/g" $R/workspace/MANDATE.md
 echo "MANDATE.md is your assignment." > $R/prompt.txt

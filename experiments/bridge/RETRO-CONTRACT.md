@@ -62,9 +62,10 @@ builders, not to the roles that steer them.
    is a living document and the retro owns it for this cycle — plus
    `REVISION.md` at the workspace root: a short note of what changed in the
    plan and why, which becomes the canonical commit message.
-4. `plan/<next-phase>/cases.txt` + brief(s) — the next phase, derived per
-   the plan's conventions, written for builders who see only their own
-   worlds. Single-layer phase: `BRIEF.md` at the phase root. Multi-layer
+4. `plan/<next-phase>/cases.txt` + brief(s) + editable.txt — the next
+   phase, derived per the plan's conventions, written for builders who see
+   only their own worlds. Single-layer phase: `BRIEF.md` + `editable.txt`
+   at the phase root. Multi-layer
    phase: `layer-<i>/BRIEF.md` + `layer-<i>/editable.txt` per layer, in
    build order; the kernel's lineage driver (`run-lineage.sh`) relays fresh
    agents through the layers, validating the full accepted suite between
