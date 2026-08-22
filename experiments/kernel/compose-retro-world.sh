@@ -96,6 +96,26 @@ your deliverables are prose and the plan. Deliver, in this order:
    builder who will see the trunk, the brief, and nothing else.
 
 Work only inside this directory.
+
+## Change vocabulary (platform contract)
+
+The platform models work in these terms; use them in your assessment, the
+revised plan, and the next brief:
+
+- A **phase** of the plan contains one **stack**: an ordered sequence of
+  **layers**. A layer is atomic work in one module (create or reopen),
+  plus thin **wiring** (single-line-scale edits: a registry line, a
+  barrel import, a hook call).
+- Every layer must keep the full accepted suite green; a layer need not
+  light new acceptance cases — **the stack as a whole must light the
+  phase's delta**. Interior layers may be delta-neutral.
+- Any edit to a non-owned module thicker than wiring is a **layer** — a
+  reopen, named as such, with a declared **interface delta** (what its
+  exported surface gains).
+- Multi-layer phases run as **racing lineages**: each of the cohort's
+  builds is a whole stack, assembled by a relay of fresh agents (one per
+  layer, mechanically gate-checked between layers). You judge the
+  completed stacks. Single-layer phases are the ordinary case.
 MD
 sed -i "s/@ENTRY@/$E/g; s/@NEXT@/$NEXT/g" $R/workspace/MANDATE.md
 echo "MANDATE.md is your assignment." > $R/prompt.txt
