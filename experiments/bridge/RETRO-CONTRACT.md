@@ -1,4 +1,4 @@
-# RETRO-CONTRACT v1.7 — step D: retrospective / replan
+# RETRO-CONTRACT v1.8 — step D: retrospective / replan
 
 The retrospective closes a pipeline cycle: a cohort has executed one plan
 entry in hard-scoped worlds, and the kernel has graded every survivor against
@@ -62,6 +62,14 @@ builders, not to the roles that steer them.
    rationale; records any boundary-revision scheduling call and its
    reasoning. Anything from a non-winning run worth carrying forward must
    be folded into the revised plan, not merely noted here.
+   **Machine verdict (v1.8):** the FIRST line of DECISION.md is parsed by
+   the platform and must be exactly one of `BANK: <builder-run-name>` or
+   `REDO: <one-line reason>`. BANK names the winner; REDO declares the
+   phase must be re-run under the revised plan instead of banking any run.
+   Nothing else in the file is machine-read. A missing/malformed verdict
+   line, or a REDO, halts the unattended pipeline for human attention
+   (redo execution is held until the operator triggers it — wiki
+   `harness/pipeline.md`).
 3. Revised `plan/PLAN.md` — reconciled with what was actually built; the plan
    is a living document and the retro owns it for this cycle — plus
    `REVISION.md` at the workspace root: a short note of what changed in the

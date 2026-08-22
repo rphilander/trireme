@@ -75,7 +75,18 @@ your deliverables are prose and the plan. Deliver, in this order:
 
 2. DECISION.md — name exactly ONE of the builder runs as the winner. Its
    codebase will be banked verbatim, by the platform, as the trunk that
-   everything later builds on. Record which run and why — the rationale is
+   everything later builds on.
+   The FIRST line of DECISION.md must be a machine verdict, exactly one of:
+
+       BANK: <builder-run-name>
+       REDO: <one-line reason>
+
+   The platform parses only this line; everything after it is your
+   rationale, as before. BANK names the winner. REDO declares that no run
+   deserves to be the trunk and the phase must be re-run under a revised
+   plan — reserve it for that; your revised plan and next-phase
+   declaration then describe the re-run. A missing or malformed verdict
+   line halts the pipeline for human attention. Record which run and why — the rationale is
    as much a deliverable as the pick. The other runs stay archived. If a
    non-winning run contains a technique or insight worth carrying forward,
    fold it into the revised plan (a future phase's row or brief) — the
