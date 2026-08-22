@@ -195,11 +195,12 @@ export function makeEffects(ctx) {
       if (r.code !== 0 || !gate) {
         // leave an honest artifact so the retro world can still be composed
         if (!gate) fs.writeFileSync(outFile, JSON.stringify({ results: [], gateError: `exit=${r.code}` }));
-        return { ok: false, gateExit: r.code };
+        return { ok: false, gateExit: r.code, hasChallenges: exists(path.join(d, "workspace/CHALLENGES.md")) };
       }
       const an = analyzeGate(gate);
-      if (!an.ok) return { ok: false, gateExit: r.code };
-      return { ok: true, total: an.total, nonPassIds: an.nonPassIds };
+      const hasChallenges = exists(path.join(d, "workspace/CHALLENGES.md"));
+      if (!an.ok) return { ok: false, gateExit: r.code, hasChallenges };
+      return { ok: true, total: an.total, nonPassIds: an.nonPassIds, hasChallenges };
     },
 
     async RECHECK_RUN(a) {
@@ -248,16 +249,15 @@ export function makeEffects(ctx) {
 
     async CHECK_DELIVERABLES(a) {
       const W = path.join(runDir(a.retro), "workspace");
-      const missing = [];
+      const missingCore = [];
       for (const f of ["RETRO.md", "DECISION.md", "REVISION.md"]) {
-        if (!exists(path.join(W, f))) missing.push(f);
+        if (!exists(path.join(W, f))) missingCore.push(f);
       }
       const nd = path.join(W, "plan", a.nextEntry);
-      if (!exists(path.join(nd, "cases.txt"))) missing.push(`plan/${a.nextEntry}/cases.txt`);
       const singleDecl = exists(path.join(nd, "BRIEF.md")) && exists(path.join(nd, "editable.txt"));
       const layerDecl = exists(path.join(nd, "layer-1", "BRIEF.md")) && exists(path.join(nd, "layer-1", "editable.txt"));
-      if (!singleDecl && !layerDecl) missing.push(`plan/${a.nextEntry}/ brief+editable declaration`);
-      return { missing, decisionText: readOr(path.join(W, "DECISION.md")) };
+      const nextDeclared = exists(path.join(nd, "cases.txt")) && (singleDecl || layerDecl);
+      return { missingCore, nextDeclared, decisionText: readOr(path.join(W, "DECISION.md")) };
     },
 
     async FOLD_PLAN(a) {
@@ -266,8 +266,67 @@ export function makeEffects(ctx) {
     },
 
     async BANK(a) {
-      const r = await sh("bash", [script("bank-trunk.sh"), a.entry, a.winner, ctx.pristine, a.subjectRel], { timeoutS: 2400 });
+      // plan-workspace = the RETRO's workspace: it carries the post-fold
+      // plan (the delta the retro may have re-derived) plus bridge+corpus.
+      // Passing a stale world here was the v1 bug — never reintroduce it.
+      const planWorkspace = path.join(runDir(a.retro), "workspace");
+      const r = await sh("bash", [script("bank-trunk.sh"), a.entry, a.winner, planWorkspace, a.subjectRel], { timeoutS: 2400 });
       return { ok: r.code === 0, output: r.out.trim().slice(-800) };
+    },
+
+    async REUSE_COHORT(a) {
+      // --from-grading: the cohort already ran (e.g. before an escalation);
+      // recover the same facts RUN_COHORT would have returned, from disk.
+      const sessionSpan = (dir) => {
+        // first/last event timestamps across the run's session files
+        let t0 = null, t1 = null;
+        const sess = path.join(dir, "home/.pi/agent/sessions");
+        if (!exists(sess)) return { startedAt: null, endedAt: null };
+        for (const f of fs.readdirSync(sess, { recursive: true })) {
+          const fp = path.join(sess, String(f));
+          if (!fp.endsWith(".jsonl") || !fs.statSync(fp).isFile()) continue;
+          const lines = fs.readFileSync(fp, "utf8").split("\n").filter(Boolean);
+          for (const line of [lines[0], lines[lines.length - 1]]) {
+            const m = line?.match(/"timestamp":(\d{10,})/);
+            if (m) {
+              const t = Number(m[1]);
+              if (t0 == null || t < t0) t0 = t;
+              if (t1 == null || t > t1) t1 = t;
+            }
+          }
+        }
+        return {
+          startedAt: t0 ? new Date(t0).toISOString() : null,
+          endedAt: t1 ? new Date(t1).toISOString() : null,
+        };
+      };
+      const runs = a.runs.map((name) => {
+        if (a.layered) {
+          const status = readOr(path.join(CR, `${name}.lineage-status`), "").trim();
+          let m;
+          let lineage = null, error = null;
+          if ((m = status.match(/^COMPLETE layers=(\d+) final=(\S+)/))) {
+            lineage = { status: "COMPLETE", layers: Number(m[1]), finalWorkspace: m[2] };
+          } else if ((m = status.match(/^HALTED layer=(\d+)/))) {
+            const hl = Number(m[1]);
+            lineage = { status: "HALTED", haltedLayer: hl, layers: a.layers, finalWorkspace: path.join(CR, `${name}-L${hl}`, "workspace") };
+          } else {
+            error = "no lineage-status on disk";
+          }
+          let sum = 0, seen = false;
+          for (let i = 1; i <= a.layers; i++) {
+            const { spend } = readRunLog(path.join(CR, `${name}-L${i}`));
+            if (spend != null) { sum += Number(spend); seen = true; }
+          }
+          return { name, ...sessionSpan(path.join(CR, `${name}-L1`)), exit: null, capOut: false, spend: seen ? sum.toFixed(3) : null, lineage, error };
+        }
+        if (!exists(path.join(runDir(name), "workspace/src"))) {
+          return { name, error: "no run on disk to reuse" };
+        }
+        const { exit, spend } = readRunLog(runDir(name));
+        return { name, exit, capOut: exit === 124, spend, ...sessionSpan(runDir(name)), lineage: null, error: null };
+      });
+      return { runs };
     },
 
     async CHECK_NEXT(a) {

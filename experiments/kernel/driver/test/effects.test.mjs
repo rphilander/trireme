@@ -77,6 +77,9 @@ ${rec}
 R=${CR}/$1
 mkdir -p $R/home/.pi/agent/sessions
 echo '{"role":"assistant"}' > $R/home/.pi/agent/sessions/2026-08-22T00-00-00-000Z_$1.jsonl
+if [ -f ${SB}/write-challenges ] && [ "$1" != "retro-e9" ]; then
+  mkdir -p $R/workspace && echo "# CHALLENGES" > $R/workspace/CHALLENGES.md
+fi
 if [ "$1" = "retro-e9" ]; then
   W=$R/workspace; mkdir -p $W/plan/entry-10
   echo retro > $W/RETRO.md
@@ -151,7 +154,11 @@ test("seam: single-layer happy path with a load flake — full cycle, correct ar
   // fold before bank; bank argv exact
   assert.ok(calls.indexOf(calls.find((c) => c.startsWith("commit-plan.sh"))) <
             calls.indexOf(calls.find((c) => c.startsWith("bank-trunk.sh"))));
-  assert.ok(calls.some((c) => /^bank-trunk\.sh entry-9 entry9-2 \S+pristine src\/engine\/index\.ts$/.test(c)));
+  // REGRESSION (v1.1 bug fix): bank-trunk's plan-workspace is the RETRO's
+  // workspace (which carries the post-fold plan + bridge + corpus), never
+  // the stale pristine world.
+  assert.ok(calls.some((c) => c === `bank-trunk.sh entry-9 entry9-2 ${sb.CR}/retro-e9/workspace src/engine/index.ts`),
+    "bank-trunk must receive the retro workspace as plan-workspace: " + calls.filter(c=>c.startsWith("bank-trunk")).join(" | "));
 
   // gate-cases = ACCEPTED ∪ entry delta, sorted unique
   const gc = fs.readFileSync(path.join(sb.CR, "entry9-1/gate-cases.txt"), "utf8").trim().split("\n");
@@ -194,7 +201,7 @@ test("seam: halted lineage is included as evidence and the cycle still lands", a
   write(path.join(sb.SB, "halt-entry9-1"), "1");
   const state = await runDriver(CFG, sb.ctx, { outDir: out(sb.SB) });
   assert.equal(state.step, "DONE");
-  assert.equal(state.runs[0].bankable, false);
+  assert.ok(!("bankable" in state.runs[0]), "framework holds no bank opinion");
   assert.equal(state.runs[0].lineage.status, "HALTED");
   // halted aggregate assembled from the halting layer's own workspace
   assert.match(fs.readFileSync(path.join(sb.CR, "entry9-1/workspace/src/engine/index.ts"), "utf8"), /layer 1/);
@@ -221,14 +228,46 @@ test("seam: REDO verdict halts before the plan is touched", async () => {
   assert.ok(!calls.some((c) => c.startsWith("bank-trunk.sh")));
 });
 
-test("seam: hard-red run in cohort — rechecked once, unbankable, cohort proceeds", async () => {
+test("seam: all-red all-challenge cohort proceeds to retro; retro banks; kernel executes", async () => {
+  // v1.1: the framework forms NO opinion — identical reds + CHALLENGES.md
+  // on every run still go to the retro, which may bank with reduced scope.
   const sb = buildSandbox({ redIds: ["test/c3.js"], verdict: "BANK: entry9-2\n" });
-  // red id fails initial gate AND recheck for every run — all runs red on c3
+  write(path.join(sb.SB, "write-challenges"), "1");
   const state = await runDriver(CFG, sb.ctx, { outDir: out(sb.SB) });
-  // every run carries the same red → no-bankable escalation, no retro composed
+  assert.equal(state.step, "DONE");
+  assert.deepEqual(state.banked, [{ entry: "entry-9", winner: "entry9-2" }]);
+  assert.ok(sb.calls().some((c) => c.startsWith("compose-retro-world.sh")));
+  // recheck ran once per run and confirmed the hard red — as facts
+  assert.deepEqual(state.runs[0].grade.recheck.failedIds, ["test/c3.js"]);
+  const klog = fs.readFileSync(path.join(sb.CR, "kernel-logs/entry-9.md"), "utf8");
+  assert.match(klog, /entry9-1: CHALLENGES\.md filed \(contents not interpreted by the platform\)/);
+  assert.ok(!/bankable/i.test(klog));
+});
+
+test("seam: bank VOID after an all-red bank attempt → bank-void escalation", async () => {
+  const sb = buildSandbox({ redIds: ["test/c3.js"], verdict: "BANK: entry9-1\n", bankExit: 1 });
+  const state = await runDriver(CFG, sb.ctx, { outDir: out(sb.SB) });
   assert.equal(state.step, "ESCALATED");
-  assert.equal(state.escalation.reason, "no-bankable");
-  assert.ok(!sb.calls().some((c) => c.startsWith("compose-retro-world.sh")));
-  const klog = fs.existsSync(path.join(sb.CR, "kernel-logs/entry-9.md"));
-  assert.equal(klog, false); // kernel log is written with the retro world, which never happened
+  assert.equal(state.escalation.reason, "bank-void");
+  // fold already happened (recorded history, not damage) — bank refused
+  const calls = sb.calls();
+  assert.ok(calls.some((c) => c.startsWith("commit-plan.sh")));
+  assert.ok(calls.some((c) => c.startsWith("bank-trunk.sh")));
+});
+
+test("seam: --from-grading reuses the cohort on disk — zero builder launches", async () => {
+  const sb = buildSandbox({});
+  const first = await runDriver(CFG, sb.ctx, { outDir: out(sb.SB) });
+  assert.equal(first.step, "DONE");
+  fs.rmSync(path.join(sb.SB, "calls.log"));
+  // trunk/entry-9 does not exist in the stub world (bank stub is a no-op),
+  // so a rerun from grading is mechanically valid here
+  const second = await runDriver({ ...CFG, fromGrading: true }, sb.ctx, { outDir: out(sb.SB) + "-2" });
+  assert.equal(second.step, "DONE");
+  const calls = sb.calls();
+  assert.ok(!calls.some((c) => c.startsWith("compose-module-world.sh")), "no builder compose on reuse");
+  assert.ok(!calls.some((c) => /^launch-world\.sh entry9-/.test(c)), "no builder launch on reuse");
+  assert.ok(calls.some((c) => c === "launch-world.sh retro-e9 60"), "retro still runs live");
+  // reused runs carry spend recovered from run.log
+  assert.equal(second.runs[0].spend, "0.123");
 });

@@ -97,9 +97,15 @@ export async function runDriver(config, ctx, { outDir }) {
 
 function parseArgs(argv) {
   const out = {};
-  for (let i = 0; i < argv.length; i += 2) {
+  for (let i = 0; i < argv.length; i++) {
     const k = argv[i].replace(/^--/, "");
-    out[k] = argv[i + 1];
+    const v = argv[i + 1];
+    if (v === undefined || v.startsWith("--")) {
+      out[k] = true; // bare flag (e.g. --from-grading)
+    } else {
+      out[k] = v;
+      i++;
+    }
   }
   return out;
 }
@@ -120,6 +126,7 @@ if (isMain) {
   });
   const config = {
     entry: a.entry,
+    fromGrading: "from-grading" in a,
     cycles: Number(a.cycles ?? 1),
     capS: Number(a.cap ?? 5400),
     retroCapS: Number(a["retro-cap"] ?? 5400),

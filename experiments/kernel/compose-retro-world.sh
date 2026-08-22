@@ -33,6 +33,7 @@ for B in "$@"; do
   cp -a $HOME/control-runs/$B/workspace/src $D/src
   cp -a $HOME/control-runs/$B/workspace/package.json $D/package.json
   cp -a $HOME/control-runs/$B/gate.json $D/gate.json
+  [ -f $HOME/control-runs/$B/workspace/CHALLENGES.md ] && cp -a $HOME/control-runs/$B/workspace/CHALLENGES.md $D/CHALLENGES.md
   cat $(find $HOME/control-runs/$B/home/.pi/agent/sessions -name '*.jsonl' | sort) > $D/transcript.jsonl
 done
 
@@ -54,6 +55,7 @@ isolated worlds, from scratch. Everything about those runs is in runs/:
     runs/<builder>/transcript.jsonl    the builder's full session, as it ran
     runs/<builder>/src/, package.json  the code it shipped
     runs/<builder>/gate.json           its pristine-gate verdicts
+    runs/<builder>/CHALLENGES.md       its challenge filings, if any
 
 KERNEL-LOG.md records the platform's interventions during the runs (killed
 wedged processes show up in transcripts as tool calls returning no output) —

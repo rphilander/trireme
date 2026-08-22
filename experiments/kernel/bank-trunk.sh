@@ -9,8 +9,12 @@
 # src/ + package.json verbatim into ~/control-runs/trunk/<entry>/, then
 # re-run the pristine gate (bridge + corpus from <plan-workspace>) over
 # every previously-accepted case id plus this entry's — all must pass, or
-# the bank is VOID. Append-only: an existing trunk/<entry> is never
-# overwritten; losers' run dirs are never touched.
+# the bank is VOID. STRICT PROGRESS (settled 2026-08-22): the entry must
+# add a non-zero number of NEW case ids beyond the previous ACCEPTED set,
+# or the bank is VOID — banking must move the ball forward. Append-only:
+# an existing trunk/<entry> is never overwritten; losers' run dirs are
+# never touched. <plan-workspace> must carry the POST-FOLD plan (in the
+# driven flow: the retro's workspace).
 set -euo pipefail
 E=$1; W=$2; P=$3; SUBJ=$4
 TR=$HOME/control-runs/trunk; T=$TR/$E
@@ -20,6 +24,15 @@ cp -a $HOME/control-runs/$W/workspace/src "$T/src"
 cp -a $HOME/control-runs/$W/workspace/package.json "$T/package.json"
 
 cat "$P/plan/$E/cases.txt" $( [ -f "$TR/ACCEPTED.txt" ] && echo "$TR/ACCEPTED.txt" ) | sort -u > "$T/gate-cases.txt"
+
+# strict progress: the union must be larger than the previous ACCEPTED set
+PREV=$( [ -f "$TR/ACCEPTED.txt" ] && sort -u "$TR/ACCEPTED.txt" | wc -l || echo 0 )
+NEWN=$(( $(wc -l < "$T/gate-cases.txt") - PREV ))
+if [ "$NEWN" -le 0 ]; then
+  mv "$T" "$TR/$E.VOID"
+  echo "BANK VOID: no new accepted cases ($NEWN new beyond the previous $PREV) — banking must move the ball forward"
+  exit 1
+fi
 set +e
 ( cd "$P" && timeout 1800 node bridge/run.mjs --subject "$T/$SUBJ" --cases "$T/gate-cases.txt" --out "$T/gate.json" )
 CODE=$?

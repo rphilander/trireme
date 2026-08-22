@@ -9,9 +9,12 @@
 //   VALIDATE → COHORT → [ASSEMBLE per lineage] → GATE(+RECHECK) per run →
 //   KLOG → COMPOSE_RETRO → RETRO → DELIVERABLES(+verdict) → FOLD → BANK →
 //   CHECK_NEXT → (next cycle | DONE)
-// Any failure ESCALATES: the driver stops and writes an escalation record
-// for the operator. v1 has no intervention capability — wall caps only —
-// and never retries a step on its own.
+// Mechanical failures ESCALATE: the driver stops and writes an escalation
+// record for the operator. v1.1 (settled 2026-08-22): THE FRAMEWORK FORMS
+// NO OPINION about banking — grading produces facts (gate results,
+// isolated-recheck outcomes, challenge-file presence); the retro alone
+// judges; bank-trunk.sh alone enforces (green + strict progress). No
+// intervention capability — wall caps only — and no retries.
 
 import { parseVerdict } from "./verdict.mjs";
 
@@ -45,9 +48,10 @@ export function initialState(config) {
     cycle: 1,
     entry: cfg.entry,
     step: "VALIDATE",
+    reuseCohort: !!cfg.fromGrading,
     layered: null,
     layers: 0,
-    runs: [], // {name, exit, capOut, spend, startedAt, endedAt, lineage, included, bankable, grade}
+    runs: [], // {name, exit, capOut, spend, startedAt, endedAt, lineage, included, grade, hasChallenges} — facts only
     idx: 0,
     retro: null,
     verdict: null,
@@ -88,7 +92,7 @@ export function nextAction(state) {
       return { type: "VALIDATE_PHASE", entry: state.entry };
     case "COHORT":
       return act({
-        type: "RUN_COHORT",
+        type: state.reuseCohort ? "REUSE_COHORT" : "RUN_COHORT",
         entry: state.entry,
         layered: state.layered,
         layers: state.layers,
@@ -151,6 +155,7 @@ export function nextAction(state) {
         type: "BANK",
         entry: state.entry,
         winner: state.winner,
+        retro: retroName(state.entry),
         subjectRel: config.subjectRel,
       };
     case "CHECK_NEXT":
@@ -185,11 +190,12 @@ export function reduce(state0, action, result) {
       return state;
     }
 
-    case "RUN_COHORT": {
+    case "RUN_COHORT":
+    case "REUSE_COHORT": {
       state.runs = result.runs.map((r) => ({
         included: r.error == null && (state.layered ? r.lineage?.status != null : true),
-        bankable: null,
         grade: null,
+        hasChallenges: false,
         ...r,
       }));
       for (const r of state.runs) {
@@ -234,15 +240,17 @@ export function reduce(state0, action, result) {
 
     case "GATE_RUN": {
       const run = state.runs[state.idx];
+      run.hasChallenges = !!result.hasChallenges;
+      if (run.hasChallenges) {
+        state.facts.push(`${run.name}: CHALLENGES.md filed (contents not interpreted by the platform)`);
+      }
       if (!result.ok) {
         run.grade = { gateError: true, nonPassIds: [], total: 0 };
-        run.bankable = false;
-        state.facts.push(`${run.name}: pristine gate errored (exit=${result.gateExit}); run treated as red`);
+        state.facts.push(`${run.name}: pristine gate errored (exit=${result.gateExit})`);
         return afterRunGraded(state);
       }
       run.grade = { nonPassIds: result.nonPassIds, total: result.total };
       if (result.nonPassIds.length === 0) {
-        run.bankable = run.lineage?.status !== "HALTED";
         return afterRunGraded(state);
       }
       state.step = "RECHECK";
@@ -255,8 +263,6 @@ export function reduce(state0, action, result) {
         ...run.grade,
         recheck: { passedIds: result.passedIds, failedIds: result.failedIds },
       };
-      run.bankable =
-        result.failedIds.length === 0 && run.lineage?.status !== "HALTED";
       state.facts.push(
         `${run.name}: ${action.ids.length} gate non-pass(es) re-run in isolation — ` +
           `${result.passedIds.length} passed (load flake), ${result.failedIds.length} still red` +
@@ -288,10 +294,13 @@ export function reduce(state0, action, result) {
       return state;
 
     case "CHECK_DELIVERABLES": {
-      if (result.missing.length > 0) {
+      // ORDER MATTERS (v1.1): core deliverables → verdict → next-phase.
+      // A REDO retro may legitimately declare no next phase (it revises
+      // the current one); only a BANK requires the next-phase declaration.
+      if (result.missingCore.length > 0) {
         return escalate(state, "missing-deliverables", {
           retro: action.retro,
-          missing: result.missing,
+          missing: result.missingCore,
           retroCapOut: state.retro?.capOut ?? false,
         });
       }
@@ -306,17 +315,18 @@ export function reduce(state0, action, result) {
           note: "redo verdict recorded; execution is held until the operator triggers it (wiki harness/pipeline.md)",
         });
       }
+      if (!result.nextDeclared) {
+        return escalate(state, "missing-deliverables", {
+          retro: action.retro,
+          missing: [`plan/${action.nextEntry}/ declaration`],
+          retroCapOut: state.retro?.capOut ?? false,
+        });
+      }
       const run = state.runs.find((r) => r.name === v.run);
       if (!run || !run.included) {
         return escalate(state, "winner-unknown", { named: v.run });
       }
-      if (!run.bankable) {
-        return escalate(state, "winner-not-bankable", {
-          named: v.run,
-          grade: run.grade,
-          lineage: run.lineage ?? null,
-        });
-      }
+      // No opinion beyond existence: the retro judged; bank-trunk enforces.
       state.winner = v.run;
       state.step = "FOLD";
       return state;
@@ -342,6 +352,7 @@ export function reduce(state0, action, result) {
         return escalate(state, "next-phase-missing", { expected: action.nextEntry });
       }
       // fresh cycle
+      state.reuseCohort = false;
       state.cycle += 1;
       state.entry = action.nextEntry;
       state.step = "VALIDATE";
@@ -389,17 +400,9 @@ function afterRunGraded(state) {
 }
 
 function finishGrading(state) {
-  const bankable = state.runs.filter((r) => r.bankable);
-  if (bankable.length === 0) {
-    return escalate(state, "no-bankable", {
-      runs: state.runs.map((r) => ({
-        name: r.name,
-        included: r.included,
-        nonPass: r.grade?.recheck?.failedIds ?? r.grade?.nonPassIds ?? null,
-        lineage: r.lineage?.status ?? null,
-      })),
-    });
-  }
+  // v1.1: grading ends with facts, never an opinion — the retro judges
+  // every cohort that produced at least one judgeable world (the no-runs
+  // check already happened at cohort time).
   state.idx = 0;
   state.step = "KLOG";
   return state;
