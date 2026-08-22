@@ -1,4 +1,4 @@
-# RETRO-CONTRACT v1.5 — step D: retrospective / replan
+# RETRO-CONTRACT v1.6 — step D: retrospective / replan
 
 The retrospective closes a pipeline cycle: a cohort has executed one plan
 entry in hard-scoped worlds, and the kernel has graded every survivor against
@@ -71,7 +71,11 @@ builders, not to the roles that steer them.
    only their own worlds. Single-layer phase: `BRIEF.md` + `editable.txt`
    at the phase root. Multi-layer
    phase: `layer-<i>/BRIEF.md` + `layer-<i>/editable.txt` per layer, in
-   build order; the kernel's lineage driver (`run-lineage.sh`) relays fresh
+   build order. THE SCOPE RULE (mechanically enforced by
+   `validate-phase.sh`; `commit-plan.sh` rejects violating revisions): one
+   module per agent session's editable set — multi-module work must be a
+   declared stack; editable.txt annotates wiring seams as `<path> wiring`.
+   The kernel's lineage driver (`run-lineage.sh`) relays fresh
    agents through the layers, validating the full accepted suite between
    layers; the stack's delta lights at the top. Briefs may describe trunk
    internals (what to reopen, where things live) — that is the retro's

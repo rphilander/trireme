@@ -30,7 +30,7 @@ while true; do
   i=$((i+1)); LDIR=$PLANREPO/$E/layer-$i
   [ -d "$LDIR" ] || break
   RUN=$NAME-L$i
-  EDITABLE=$(grep -v '^\s*$' $LDIR/editable.txt | tr '\n' ' ')
+  EDITABLE=$(awk 'NF{print $1}' $LDIR/editable.txt | tr '\n' ' ')
   echo "## layer $i ($RUN): editable = $EDITABLE" >> $LOG
   TRIREME_BASE="$BASE" TRIREME_BRIEF="$LDIR/BRIEF.md" \
     $HOME/src/trireme/experiments/kernel/compose-module-world.sh $RUN "$P" "$E" $EDITABLE >> $LOG 2>&1

@@ -15,6 +15,15 @@ W=$HOME/control-runs/$RN/workspace/plan
 MSG=$HOME/control-runs/$RN/workspace/REVISION.md
 [ -f "$MSG" ] || { echo "no REVISION.md in $RN workspace" >&2; exit 1; }
 rsync -a --delete --exclude .git "$W/" "$REPO/"
+# reject the fold if the newest phase declaration violates the scope rule
+NEWEST=$(ls -d "$REPO"/entry-* 2>/dev/null | sed 's/.*entry-//' | sort -n | tail -1)
+if [ -n "$NEWEST" ] && { [ -f "$REPO/entry-$NEWEST/BRIEF.md" ] || [ -d "$REPO/entry-$NEWEST/layer-1" ]; }; then
+  if ! $HOME/src/trireme/experiments/kernel/validate-phase.sh "$REPO" "entry-$NEWEST"; then
+    cd "$REPO" && git checkout -q -- . && git clean -qfd
+    echo "commit-plan REJECTED: phase entry-$NEWEST violates the scope rule; canonical plan restored" >&2
+    exit 1
+  fi
+fi
 cd "$REPO"
 git add -A
 if git diff --cached --quiet; then
