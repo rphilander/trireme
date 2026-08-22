@@ -116,6 +116,13 @@ revised plan, and the next brief:
   builds is a whole stack, assembled by a relay of fresh agents (one per
   layer, mechanically gate-checked between layers). You judge the
   completed stacks. Single-layer phases are the ordinary case.
+- **Declaring a multi-layer phase** (so the platform can run it): put the
+  stack's delta in plan/<phase>/cases.txt as usual, and give each layer a
+  directory — plan/<phase>/layer-1/BRIEF.md + layer-1/editable.txt (the
+  layer's editable paths, one per line), layer-2/..., in build order.
+  Each layer's brief is that agent's entire assignment; write it for a
+  builder who sees only that layer's world. A single-layer phase keeps
+  BRIEF.md at the phase root, exactly as before.
 MD
 sed -i "s/@ENTRY@/$E/g; s/@NEXT@/$NEXT/g" $R/workspace/MANDATE.md
 echo "MANDATE.md is your assignment." > $R/prompt.txt

@@ -16,7 +16,9 @@ set -euo pipefail
 NAME=$1; P=$2; E=$3; shift 3
 R=$HOME/control-runs/$NAME
 PLANREPO=$HOME/control-runs/plan
-TRUNK=$HOME/control-runs/trunk/current
+# Base for the world's src: the banked trunk by default; a lineage driver
+# overrides via TRIREME_BASE to stack a layer on the lineage's own result.
+TRUNK=${TRIREME_BASE:-$HOME/control-runs/trunk/current}
 
 rm -rf $R && mkdir -p $R/workspace/bridge $R/home/.pi/agent/extensions
 mkdir -p $R/workspace/test262
@@ -33,7 +35,7 @@ for i in $(seq 1 $N); do
   cp $PLANREPO/$A/cases.txt $R/workspace/plan/$A/cases.txt
   cat $PLANREPO/$A/cases.txt >> $ALL_IDS
 done
-cp $PLANREPO/$E/BRIEF.md $R/workspace/BRIEF.md
+cp ${TRIREME_BRIEF:-$PLANREPO/$E/BRIEF.md} $R/workspace/BRIEF.md
 sort -u $ALL_IDS > $ALL_IDS.u && mv $ALL_IDS.u $ALL_IDS
 while read -r id; do
   [ -z "$id" ] && continue

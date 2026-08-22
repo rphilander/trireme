@@ -1,4 +1,4 @@
-# RETRO-CONTRACT v1.3 — step D: retrospective / replan
+# RETRO-CONTRACT v1.4 — step D: retrospective / replan
 
 The retrospective closes a pipeline cycle: a cohort has executed one plan
 entry in hard-scoped worlds, and the kernel has graded every survivor against
@@ -62,10 +62,14 @@ builders, not to the roles that steer them.
    is a living document and the retro owns it for this cycle — plus
    `REVISION.md` at the workspace root: a short note of what changed in the
    plan and why, which becomes the canonical commit message.
-4. `plan/<next-entry>/cases.txt` + `plan/<next-entry>/BRIEF.md` — the next
-   entry, derived per the plan's conventions, sized for one capped session,
-   written for a builder who sees only its own world. Briefs may describe
-   trunk internals (what to reopen, where things live) — that is the retro's
+4. `plan/<next-phase>/cases.txt` + brief(s) — the next phase, derived per
+   the plan's conventions, written for builders who see only their own
+   worlds. Single-layer phase: `BRIEF.md` at the phase root. Multi-layer
+   phase: `layer-<i>/BRIEF.md` + `layer-<i>/editable.txt` per layer, in
+   build order; the kernel's lineage driver (`run-lineage.sh`) relays fresh
+   agents through the layers, validating the full accepted suite between
+   layers; the stack's delta lights at the top. Briefs may describe trunk
+   internals (what to reopen, where things live) — that is the retro's
    descriptive, not operative, relationship to code.
 
 ## Kernel enforcement (after the session)
