@@ -61,7 +61,9 @@ comments for convention details.
 RM
 cp ~/src/trireme/experiments/bridge/contract.d.ts $R/workspace/contract.d.ts
 cp ~/src/trireme/experiments/kernel/extensions/trireme-shell.ts $R/home/.pi/agent/extensions/
-printf 'BRIEF.md is your assignment. Build the product. You have %d minutes of wall clock for this session.\n' $(( ${CAP_S:-5400} / 60 )) > $R/prompt.txt
+{ printf 'BRIEF.md is your assignment. Build the product. You have %d minutes of wall clock for this session.\n' $(( ${CAP_S:-5400} / 60 ))
+  printf 'Platform contract: if you conclude a listed case cannot pass within your editable surface, keep it red and file it in CHALLENGES.md at the workspace root (case ids, your claim, your evidence) — never implement around your surface. The retrospective adjudicates challenges; honest reds with correct challenges outrank workarounds.\n'
+} > $R/prompt.txt
 
 python3 -c "
 import json
