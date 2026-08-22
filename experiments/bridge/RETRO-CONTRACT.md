@@ -1,4 +1,4 @@
-# RETRO-CONTRACT v1.4 — step D: retrospective / replan
+# RETRO-CONTRACT v1.5 — step D: retrospective / replan
 
 The retrospective closes a pipeline cycle: a cohort has executed one plan
 entry in hard-scoped worlds, and the kernel has graded every survivor against
@@ -20,8 +20,11 @@ plan, and authors the next entry's brief.
    was banked and why. Auditability of retro quality depends on the written
    reasoning, not just the pick.
 3. **Banking never discards.** Non-chosen builder runs are retained untouched
-   in their run dirs — forensics, later idea-stealing (DECISION.md flags
-   anything worth stealing), and outcome-distribution data.
+   in their run dirs — forensics and outcome-distribution data. Ideas from
+   non-winning runs carry forward ONLY via the plan: there is no transplant
+   mechanism — the retro re-describes a technique in a future phase's row
+   or brief and a fresh builder re-implements it. DECISION.md records the
+   judgment; it is not a forward channel (future agents never see it).
 4. **The retro never writes or manipulates code** (v1.1 correction, operator
    review 2026-08-21; v1 had the retro copying the winner into trunk/ and
    optionally performing plan-scheduled refactors itself). The retro reads
@@ -56,8 +59,9 @@ builders, not to the roles that steer them.
 1. `RETRO.md` — assessment of the entry: what the runs reveal about the plan,
    the brief, the process, the platform.
 2. `DECISION.md` — names exactly ONE builder run as the winner, with the
-   rationale; notes anything worth stealing from the losers; records any
-   boundary-revision scheduling call and its reasoning.
+   rationale; records any boundary-revision scheduling call and its
+   reasoning. Anything from a non-winning run worth carrying forward must
+   be folded into the revised plan, not merely noted here.
 3. Revised `plan/PLAN.md` — reconciled with what was actually built; the plan
    is a living document and the retro owns it for this cycle — plus
    `REVISION.md` at the workspace root: a short note of what changed in the

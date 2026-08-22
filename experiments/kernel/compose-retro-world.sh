@@ -76,8 +76,11 @@ your deliverables are prose and the plan. Deliver, in this order:
 2. DECISION.md — name exactly ONE of the builder runs as the winner. Its
    codebase will be banked verbatim, by the platform, as the trunk that
    everything later builds on. Record which run and why — the rationale is
-   as much a deliverable as the pick. The other runs stay archived; if one
-   contains something specifically worth stealing later, say so.
+   as much a deliverable as the pick. The other runs stay archived. If a
+   non-winning run contains a technique or insight worth carrying forward,
+   fold it into the revised plan (a future phase's row or brief) — the
+   plan is the only artifact future agents see; a note that lives only in
+   DECISION.md carries nothing forward.
    If the plan schedules a boundary revision at this retrospective (see
    PLAN.md), whether and when it happens is your call — but it happens as
    work you schedule in the revised plan (an entry's scope), never as work
