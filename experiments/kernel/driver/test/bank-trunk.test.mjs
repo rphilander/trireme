@@ -25,7 +25,7 @@ function write(p, content) {
 // Sandbox: fake HOME with control-runs/{winner run, trunk}, and a plan
 // workspace carrying plan/entry-9/cases.txt + a stub bridge whose verdicts
 // come from red-ids.txt.
-function buildSandbox({ accepted, entryCases, redIds = [] }) {
+function buildSandbox({ accepted, entryCases, redIds = [], flakyIds = [] }) {
   const H = fs.mkdtempSync(path.join(SCRATCH, "bank-"));
   const CR = path.join(H, "control-runs");
   const P = path.join(CR, "retro-e9/workspace");
@@ -34,12 +34,23 @@ function buildSandbox({ accepted, entryCases, redIds = [] }) {
   if (accepted.length) write(path.join(CR, "trunk/ACCEPTED.txt"), accepted.join("\n") + "\n");
   write(path.join(P, "plan/entry-9/cases.txt"), entryCases.join("\n") + "\n");
   write(path.join(H, "red-ids.txt"), redIds.join("\n"));
+  write(path.join(H, "flaky-ids.txt"), flakyIds.join("\n"));
   write(path.join(P, "bridge/run.mjs"), `
 import fs from "node:fs";
 const arg = (k) => process.argv[process.argv.indexOf(k) + 1];
+const H = ${JSON.stringify(H)};
 const ids = fs.readFileSync(arg("--cases"), "utf8").split("\\n").filter(Boolean);
-const red = new Set(fs.readFileSync(${JSON.stringify(path.join(H, "red-ids.txt"))}, "utf8").split("\\n").filter(Boolean));
-fs.writeFileSync(arg("--out"), JSON.stringify({ results: ids.map((id) => ({ id, status: red.has(id) ? "fail" : "pass" })) }));
+const red = new Set(fs.readFileSync(H + "/red-ids.txt", "utf8").split("\\n").filter(Boolean));
+const flaky = new Set(fs.readFileSync(H + "/flaky-ids.txt", "utf8").split("\\n").filter(Boolean));
+const results = ids.map((id) => {
+  if (red.has(id)) return { id, status: "fail" };
+  if (flaky.has(id)) {
+    const seen = H + "/.flaked-" + Buffer.from(id).toString("hex");
+    if (!fs.existsSync(seen)) { fs.writeFileSync(seen, "1"); return { id, status: "fail" }; }
+  }
+  return { id, status: "pass" };
+});
+fs.writeFileSync(arg("--out"), JSON.stringify({ results }));
 `);
   return { H, CR, P };
 }
@@ -115,4 +126,32 @@ test("bank-trunk: missing post-fold cases.txt fails loudly, no trunk side effect
   const r = bank(sb);
   assert.notEqual(r.code, 0);
   assert.ok(!fs.existsSync(path.join(sb.CR, "trunk/current")), "no current symlink on failure");
+});
+
+test("bank-trunk FLAKE RESCUE: a gate flake is re-run in isolation and the bank proceeds", () => {
+  const sb = buildSandbox({ accepted: ["test/a1.js"], entryCases: ["test/c1.js", "test/c2.js"], flakyIds: ["test/a1.js"] });
+  const r = bank(sb);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /isolation/i);
+  assert.match(r.out, /BANKED trunk\/entry-9/);
+  const acc = fs.readFileSync(path.join(sb.CR, "trunk/ACCEPTED.txt"), "utf8").trim().split("\n");
+  assert.equal(acc.length, 3);
+});
+
+test("bank-trunk: persistent red still VOIDs even with recheck in place", () => {
+  const sb = buildSandbox({ accepted: ["test/a1.js"], entryCases: ["test/c1.js"], redIds: ["test/c1.js"] });
+  const r = bank(sb);
+  assert.notEqual(r.code, 0);
+  assert.match(r.out, /VOID/);
+});
+
+test("bank-trunk: successive VOIDs get unique evidence dirs (no nesting)", () => {
+  const sb = buildSandbox({ accepted: ["test/a1.js"], entryCases: ["test/c1.js"], redIds: ["test/c1.js"] });
+  assert.notEqual(bank(sb).code, 0);
+  assert.notEqual(bank(sb).code, 0);
+  const voids = fs.readdirSync(path.join(sb.CR, "trunk")).filter((d) => d.includes("VOID"));
+  assert.equal(voids.length, 2, "two distinct VOID dirs: " + voids.join(","));
+  for (const v of voids) {
+    assert.ok(!fs.existsSync(path.join(sb.CR, "trunk", v, "entry-9")), "no nested trunk dir inside " + v);
+  }
 });

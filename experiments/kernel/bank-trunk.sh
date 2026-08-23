@@ -44,9 +44,37 @@ except Exception: print('unreadable'); raise SystemExit
 bad=[x['id'] for x in r if x['status']!='pass']
 print(len(bad))
 for b in bad[:10]: print(' ', b)" 2>/dev/null | head -12)
+if [ "$CODE" -eq 0 ] && [ "$(echo "$FAILS" | head -1)" != "0" ] && [ "$(echo "$FAILS" | head -1)" != "unreadable" ]; then
+  # A VOID must be EARNED (live incident 2026-08-23, entry-16 second bank:
+  # one case red in the full sweep, green alone — the same flake class the
+  # relay and driver grading already recheck for). Re-run just the
+  # non-passes in one quiet invocation; only a persistent red voids.
+  python3 -c "
+import json
+r=json.load(open('$T/gate.json'))['results']
+print('\n'.join(x['id'] for x in r if x['status']!='pass'))" > "$T/recheck-ids.txt"
+  set +e
+  ( cd "$P" && timeout 900 node bridge/run.mjs --subject "$T/$SUBJ" --cases "$T/recheck-ids.txt" --out "$T/gate-recheck.json" )
+  RC=$?
+  set -e
+  if [ "$RC" -eq 0 ]; then
+    STILL=$(python3 -c "
+import json
+try: r=json.load(open('$T/gate-recheck.json'))['results']
+except Exception: print('unreadable'); raise SystemExit
+print(sum(1 for x in r if x['status']!='pass'))")
+    if [ "$STILL" = "0" ]; then
+      echo "gate: $(echo "$FAILS" | head -1) non-pass(es) re-ran green in isolation (flake); bank proceeds"
+      FAILS="0"
+    fi
+  fi
+fi
 if [ "$CODE" -ne 0 ] || [ "$(echo "$FAILS" | head -1)" != "0" ]; then
-  mv "$T" "$TR/$E.VOID"
+  V="$TR/$E.VOID"
+  [ -e "$V" ] && V="$TR/$E.VOID.$(date -u +%Y%m%dT%H%M%S)"
+  mv "$T" "$V"
   echo "BANK VOID: gate exit=$CODE, failures:"; echo "$FAILS"
+  echo "void evidence: $V"
   exit 1
 fi
 cp "$T/gate-cases.txt" "$TR/ACCEPTED.txt"
