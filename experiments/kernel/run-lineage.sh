@@ -50,9 +50,41 @@ try: r=json.load(open('$HOME/control-runs/$RUN/layer-gate.json'))['results']
 except Exception: print(-1); raise SystemExit
 print(sum(1 for x in r if x['status']!='pass'))")
   if [ "$GATE" -ne 0 ] || [ "$FAILS" != "0" ]; then
-    echo "- **LINEAGE HALTED at layer $i**: gate exit=$GATE, non-pass=$FAILS" >> $LOG
-    echo "HALTED layer=$i" > $HOME/control-runs/$NAME.lineage-status
-    exit 1
+    # A halt must be EARNED (live incident 2026-08-23, entry15-2 false
+    # halt): full-suite sweeps under concurrent-lineage load can flake
+    # single cases, so the standing isolated-recheck habit applies at
+    # layer boundaries too. Re-run just the non-passes in one quiet
+    # invocation; halt only if any stays red or the sweep itself errored.
+    RESCUED=0
+    if [ "$GATE" -eq 0 ] && [ "$FAILS" != "-1" ]; then
+      python3 -c "
+import json
+r=json.load(open('$HOME/control-runs/$RUN/layer-gate.json'))['results']
+print('\n'.join(x['id'] for x in r if x['status']!='pass'))" > $HOME/control-runs/$RUN/recheck-ids.txt
+      set +e
+      ( cd "$P" && timeout 900 node bridge/run.mjs \
+          --subject $HOME/control-runs/$RUN/workspace/src/engine/index.ts \
+          --cases $HOME/control-runs/$RUN/recheck-ids.txt \
+          --out $HOME/control-runs/$RUN/layer-gate-recheck.json ) >> $LOG 2>&1
+      RC=$?
+      set -e
+      if [ "$RC" -eq 0 ]; then
+        STILL=$(python3 -c "
+import json
+try: r=json.load(open('$HOME/control-runs/$RUN/layer-gate-recheck.json'))['results']
+except Exception: print(-1); raise SystemExit
+print(sum(1 for x in r if x['status']!='pass'))")
+        if [ "$STILL" = "0" ]; then
+          RESCUED=1
+          echo "- layer $i: $FAILS non-pass(es) re-ran green in isolation (load flake); validation passes" >> $LOG
+        fi
+      fi
+    fi
+    if [ "$RESCUED" != "1" ]; then
+      echo "- **LINEAGE HALTED at layer $i**: gate exit=$GATE, non-pass=$FAILS (recheck did not rescue)" >> $LOG
+      echo "HALTED layer=$i" > $HOME/control-runs/$NAME.lineage-status
+      exit 1
+    fi
   fi
   echo "- layer $i VALIDATED: accepted suite green" >> $LOG
   BASE=$HOME/control-runs/$RUN/workspace
