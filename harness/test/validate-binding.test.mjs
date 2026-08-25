@@ -131,3 +131,10 @@ test("empty inventory → REJECT", () => {
   assert.notEqual(r.code, 0);
   assert.match(r.out, /empty|non-empty/i);
 });
+
+test("large inventory (>20 ids) does not SIGPIPE the validator", () => {
+  const ids = Array.from({ length: 5000 }, (_, i) => `case/${i}.js`);
+  const r = validate(buildBinding({ inventory: ids }));
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /OK/);
+});

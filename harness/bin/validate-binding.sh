@@ -14,7 +14,7 @@ done
 # inventory sanity
 TOTAL=$(grep -cvE '^\s*(#|$)' "$W/inventory/cases.txt" || true)
 [ "$TOTAL" -gt 0 ] || fail "inventory is empty (must be non-empty)"
-DUPS=$(grep -vE '^\s*(#|$)' "$W/inventory/cases.txt" | sort | uniq -d | head -3)
+DUPS=$(grep -vE '^\s*(#|$)' "$W/inventory/cases.txt" | sort | uniq -d | awk 'NR<=3' || true)
 [ -z "$DUPS" ] || fail "duplicate inventory ids: $DUPS"
 
 # budgets.json parses
@@ -23,7 +23,8 @@ python3 -c "import json; d=json.load(open('$W/budgets.json')); assert 'defaultTi
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
-grep -vE '^\s*(#|$)' "$W/inventory/cases.txt" | head -20 > "$TMP/sample.txt"
+grep -vE '^\s*(#|$)' "$W/inventory/cases.txt" > "$TMP/all-ids.txt" || true
+head -20 "$TMP/all-ids.txt" > "$TMP/sample.txt"
 : > "$TMP/empty-subject.js"
 
 run_probe(){ # <label> <subject-path> <out>
