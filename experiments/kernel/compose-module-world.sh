@@ -84,7 +84,7 @@ for root,_,files in os.walk(f"{R}/workspace/src"):
         rel=os.path.relpath(p, f"{R}/workspace")
         if rel not in editable: frozen.append(p)
 s={"filesystem":{
-    "denyRead":[f"{H}/src",f"{H}/.ssh",f"{H}/.pi",f"{H}/.bashrc",f"{H}/.profile",f"{H}/.npmrc",
+    "denyRead":[f"{H}/src",f"{H}/.ssh",f"{H}/.pi",f"{H}/.bashrc",f"{H}/.trireme-env",f"{H}/.profile",f"{H}/.npmrc",
                 f"{H}/.gitconfig",f"{H}/.git-credentials",f"{H}/.claude",f"{H}/.claude.json",f"{H}/.config"]
                 +[f"{H}/control-runs/{d}" for d in os.listdir(f"{H}/control-runs") if d!="$NAME"],
     "allowWrite":[R,"/tmp"],
