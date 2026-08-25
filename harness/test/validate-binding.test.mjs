@@ -133,7 +133,8 @@ test("empty inventory → REJECT", () => {
 });
 
 test("large inventory (>20 ids) does not SIGPIPE the validator", () => {
-  const ids = Array.from({ length: 5000 }, (_, i) => `case/${i}.js`);
+  // volume must exceed the 64KB pipe buffer or grep finishes before head exits
+  const ids = Array.from({ length: 60000 }, (_, i) => `suite/some/deeply/nested/path/case-number-${i}.js`);
   const r = validate(buildBinding({ inventory: ids }));
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /OK/);
