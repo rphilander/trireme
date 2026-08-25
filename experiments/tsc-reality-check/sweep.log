@@ -1,0 +1,25 @@
+MATCH src/engine/ast.ts  transpile=9994ms wall=13.8s out=145b
+DIFF  src/engine/builtins/annexB.ts  transpile=143723ms wall=147.6s engine=24966b node=25337b
+MATCH src/engine/builtins/array.ts  transpile=254432ms wall=258.3s out=29340b
+DIFF  src/engine/builtins/date.ts  transpile=195663ms wall=199.0s engine=29152b node=29195b
+DIFF  src/engine/builtins/errors.ts  transpile=18088ms wall=21.4s engine=10887b node=10932b
+MATCH src/engine/builtins/function.ts  transpile=26627ms wall=30.5s out=11248b
+MATCH src/engine/builtins/globals.ts  transpile=106556ms wall=110.2s out=21140b
+MATCH src/engine/builtins/index.ts  transpile=405ms wall=4.0s out=886b
+MATCH src/engine/builtins/json.ts  transpile=180760ms wall=184.5s out=26705b
+MATCH src/engine/builtins/math.ts  transpile=11965ms wall=15.5s out=7954b
+FAIL  src/engine/builtins/number.ts  wall=90.3s  FAILED:ReferenceError:
+MATCH src/engine/builtins/object.ts  transpile=224437ms wall=227.6s out=30873b
+MATCH src/engine/builtins/regexp.ts  transpile=8851ms wall=12.1s out=8858b
+MATCH src/engine/builtins/registry.ts  transpile=594ms wall=4.0s out=743b
+MATCH src/engine/builtins/string.ts  transpile=399905ms wall=403.5s out=35144b
+MATCH src/engine/date-engine.ts  transpile=159907ms wall=163.1s out=28305b
+MATCH src/engine/environment.ts  transpile=7927ms wall=11.0s out=7169b
+MATCH src/engine/evaluator.ts  transpile=5414118ms wall=5417.4s out=124352b
+MATCH src/engine/globals.ts  transpile=116756ms wall=120.3s out=19620b
+MATCH src/engine/index.ts  transpile=1121ms wall=4.9s out=1193b
+MATCH src/engine/lexer.ts  transpile=65776ms wall=69.6s out=18090b
+MATCH src/engine/objects.ts  transpile=127368ms wall=131.0s out=20502b
+MATCH src/engine/parser.ts  transpile=720000ms wall=723.5s out=48349b
+MATCH src/engine/regexp-engine.ts  transpile=978611ms wall=982.4s out=49567b
+MATCH src/engine/values.ts  transpile=1842ms wall=5.6s out=2283b

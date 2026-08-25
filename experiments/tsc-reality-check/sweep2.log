@@ -1,0 +1,4 @@
+MATCH src/engine/builtins/date.ts  transpile=226280ms wall=230.1s out=29195b
+MATCH src/engine/builtins/errors.ts  transpile=14730ms wall=18.3s out=10932b
+MATCH src/engine/builtins/annexB.ts  transpile=113118ms wall=116.4s out=25337b
+MATCH src/engine/builtins/number.ts  transpile=84352ms wall=87.7s out=17950b
