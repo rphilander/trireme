@@ -14,12 +14,21 @@ export function write(p, c, { exec = false } = {}) {
 }
 
 // A conforming gate runner: deterministic, never crashes, honest statuses.
+// Accepts --subject as a file or a package dir (index.mjs), like the
+// production convention.
 export const GOOD_RUNNER = `
 import fs from "node:fs";
 const arg = (k) => { const i = process.argv.indexOf(k); return i < 0 ? undefined : process.argv[i + 1]; };
-const ids = fs.readFileSync(arg("--cases"), "utf8").split("\\n").filter(l => l.trim() && !l.startsWith("#"));
+const casesArg = arg("--cases");
+const ids = casesArg === "ALL"
+  ? fs.readFileSync(new URL("../inventory/cases.txt", import.meta.url), "utf8").split("\\n").filter(l => l.trim() && !l.startsWith("#"))
+  : fs.readFileSync(casesArg, "utf8").split("\\n").filter(l => l.trim() && !l.startsWith("#"));
 let subjectOk = false;
-try { subjectOk = fs.readFileSync(arg("--subject"), "utf8").length > 0; } catch {}
+try {
+  const s = arg("--subject");
+  const p = fs.statSync(s).isDirectory() ? s + "/index.mjs" : s;
+  subjectOk = fs.readFileSync(p, "utf8").length > 0;
+} catch {}
 const results = ids.map(id => ({ id, status: subjectOk ? "pass" : "fail", ms: 1 }));
 fs.writeFileSync(arg("--out"), JSON.stringify({ results }));
 `;
@@ -53,6 +62,26 @@ export function qeWorkspace({
   if (!omit.includes("self")) write(path.join(W, "suite/self/run.mjs"), self);
   if (!omit.includes("SUITE")) write(path.join(W, "SUITE.md"), "# suite");
   if (!omit.includes("FINDINGS")) write(path.join(W, "FINDINGS.md"), "# findings");
+  return W;
+}
+
+// A fake campaign with a banked gate (stub module at gate/entry-1,
+// current symlink) inside a fake HOME. Returns {H, CAMPAIGN, ...}.
+export function fakeCampaign(extra = {}) {
+  const home = fakeHome();
+  const CAMPAIGN = path.join(home.H, "campaign");
+  const gate = qeWorkspace(extra);
+  fs.mkdirSync(path.join(CAMPAIGN, "gate"), { recursive: true });
+  fs.cpSync(gate, path.join(CAMPAIGN, "gate/entry-1"), { recursive: true });
+  fs.symlinkSync("entry-1", path.join(CAMPAIGN, "gate/current"));
+  return { ...home, CAMPAIGN };
+}
+
+// A code-phase candidate workspace: product/ package + BUILD.md.
+export function codeWorkspace({ empty = false } = {}) {
+  const W = fs.mkdtempSync(path.join(SCRATCH, "cw-"));
+  write(path.join(W, "product/index.mjs"), empty ? "" : "export default { evaluate(){} };\n");
+  write(path.join(W, "BUILD.md"), "# build notes");
   return W;
 }
 

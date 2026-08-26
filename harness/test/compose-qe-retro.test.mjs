@@ -56,8 +56,9 @@ test("qe retro world: candidates, VALIDATION facts, transcripts, brief, verdict 
   assert.match(mandate, /BANK: <run-name>/);
   assert.match(mandate, /REDO:/);
   assert.match(mandate, /never edit[\s\S]{0,3}their deliverables/i);
-  // phase TYPE stamped for bank-phase dispatch
+  // phase TYPE + corpus path stamped for bank-phase dispatch
   assert.equal(fs.readFileSync(path.join(R, "TYPE"), "utf8").trim(), "qe");
+  assert.equal(fs.readFileSync(path.join(R, "CORPUS"), "utf8").trim(), TESTS);
   // sandbox: candidates and tests write-denied
   const settings = JSON.parse(fs.readFileSync(path.join(R, "settings.json"), "utf8"));
   assert.ok(settings.filesystem.denyWrite.some((p) => p.endsWith("/workspace/candidates")));

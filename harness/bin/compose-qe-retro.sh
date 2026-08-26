@@ -15,6 +15,7 @@ BINDIR=$(cd "$(dirname "$0")" && pwd)
 
 rm -rf $R && mkdir -p $R/workspace/candidates $R/home/.pi/agent/extensions
 echo qe > $R/TYPE
+readlink -f "$TESTS" > $R/CORPUS
 cp ~/src/trireme/experiments/kernel/extensions/trireme-shell.ts $R/home/.pi/agent/extensions/
 cp -al "$TESTS" $R/workspace/tests
 

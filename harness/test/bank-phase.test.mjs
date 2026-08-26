@@ -8,17 +8,20 @@ import path from "node:path";
 import { BIN, fakeHome, qeWorkspace, write } from "./stubs.mjs";
 
 function setup({ decision, type = "qe", winnerOk = true } = {}) {
-  const { H } = fakeHome();
+  const { H, TESTS } = fakeHome();
   const CAMPAIGN = path.join(H, "campaign");
   fs.mkdirSync(CAMPAIGN, { recursive: true });
-  // retro run with TYPE stamp + DECISION.md
+  // retro run with TYPE stamp + CORPUS stamp + DECISION.md
   write(path.join(H, "control-runs/retro-1/TYPE"), type + "\n");
+  write(path.join(H, "control-runs/retro-1/CORPUS"), TESTS + "\n");
   write(path.join(H, "control-runs/retro-1/workspace/DECISION.md"), decision);
-  // winner run
+  // winner run — includes the world artifacts a real workspace carries
   const W = winnerOk ? qeWorkspace() : qeWorkspace({ omit: ["budgets"] });
   fs.mkdirSync(path.join(H, "control-runs/qw-1"), { recursive: true });
   fs.cpSync(W, path.join(H, "control-runs/qw-1/workspace"), { recursive: true });
-  return { H, CAMPAIGN };
+  write(path.join(H, "control-runs/qw-1/workspace/MANDATE.md"), "# world mandate");
+  write(path.join(H, "control-runs/qw-1/workspace/tests/decoy.js"), "// materialized corpus copy");
+  return { H, CAMPAIGN, TESTS };
 }
 
 function bank(H, CAMPAIGN, retro = "retro-1") {
@@ -35,6 +38,12 @@ test("qe BANK with valid winner → gate/entry-1 + current symlink + history", (
   assert.ok(fs.existsSync(path.join(CAMPAIGN, "gate/entry-1/bridge/run.mjs")));
   assert.ok(fs.existsSync(path.join(CAMPAIGN, "gate/entry-1/scope/cases.txt")));
   assert.equal(fs.readlinkSync(path.join(CAMPAIGN, "gate/current")), "entry-1");
+  // world artifacts excluded; corpus re-linked from the stamp, not copied
+  assert.ok(!fs.existsSync(path.join(CAMPAIGN, "gate/entry-1/MANDATE.md")));
+  assert.ok(!fs.existsSync(path.join(CAMPAIGN, "gate/entry-1/tests/decoy.js")));
+  const relinked = path.join(CAMPAIGN, "gate/entry-1/tests/suite/alpha.spec.js");
+  assert.ok(fs.existsSync(relinked), "corpus present in the banked gate");
+  assert.ok(fs.statSync(relinked).nlink > 1, "corpus hardlinked, not materialized");
   const hist = fs.readFileSync(path.join(CAMPAIGN, "history.log"), "utf8");
   assert.match(hist, /BANK qe retro=retro-1 winner=qw-1 gate\/entry-1/);
 });
@@ -79,12 +88,13 @@ test("REDO → exit 3, nothing banked, history records it", () => {
   assert.match(fs.readFileSync(path.join(CAMPAIGN, "history.log"), "utf8"), /REDO/);
 });
 
-test("code phase → explicit refusal (exit 4) until code banking lands", () => {
+test("code phase against a gateless campaign → VOID (regrade impossible)", () => {
   const { H, CAMPAIGN } = setup({ decision: "BANK: qw-1\n", type: "code" });
   const r = bank(H, CAMPAIGN);
-  assert.equal(r.code, 4, r.out);
-  assert.match(r.out, /code/i);
+  assert.equal(r.code, 2, r.out);
+  assert.match(r.out, /BANK VOID/);
   assert.ok(!fs.existsSync(path.join(CAMPAIGN, "gate")));
+  assert.ok(!fs.existsSync(path.join(CAMPAIGN, "trunk")));
 });
 
 test("garbage verdict line → exit 1 escalation", () => {
