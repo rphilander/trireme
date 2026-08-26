@@ -34,6 +34,8 @@ test("bootstrap mode: layout, verbatim goal+brief, gate contract, no gate dir, n
   assert.match(mandate, /suite\/self\/run\.mjs/);
   assert.match(mandate, /FINDING/);
   assert.match(mandate, /[Nn]ever weaken/);
+  // precedence: platform interfaces win over anything a brief says
+  assert.match(mandate, /platform.{0,40}(wins|takes precedence)/is);
   // fixed framing carries no domain or defect vocabulary
   const fixed = mandate.replace(/Build a frobnicator as a Node package\./, "")
     .replace(/TYPE: qe[\s\S]*?\$DONE literal\./, "");

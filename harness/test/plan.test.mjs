@@ -35,6 +35,11 @@ test("compose-plan-world: goal verbatim, bootstrap rule, TYPE convention, tests 
   assert.match(mandate, /plan\/briefs\/phase-1\.md/);
   // briefs are the only channel to a cohort — the mandate must say so
   assert.match(mandate, /self-contained/i);
+  // the planner must see the platform's fixed interfaces so briefs
+  // cannot contradict them, and must be told briefs never re-specify them
+  assert.match(mandate, /--subject/);
+  assert.match(mandate, /scope\/cases\.txt/);
+  assert.match(mandate, /never re-specify|do not re-specify/i);
   for (const banned of [/test262/i, /webgl/i, /es5/i]) {
     assert.ok(!banned.test(mandate), `mandate leaks domain vocabulary: ${banned}`);
   }

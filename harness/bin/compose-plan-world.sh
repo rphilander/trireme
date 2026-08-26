@@ -48,6 +48,28 @@ are two phase types:
 Because coding candidates are graded by the last-banked gate, PHASE 1
 IS ALWAYS A qe PHASE: nothing can be graded before a gate exists.
 
+## Platform interfaces (fixed — supplied to every cohort verbatim)
+
+The platform hands every cohort the exact machinery contracts along
+with your brief; briefs govern intent, scope, and acceptance emphasis,
+and must NEVER re-specify or alter file layouts, invocations, or
+output shapes — where a brief and the platform contracts disagree, the
+platform contracts win. So you can aim your briefs correctly, the
+fixed surfaces are:
+
+- The gate a qe cohort delivers is this exact layout in its workspace
+  root: bridge/run.mjs (the verdict runner), contract.d.ts (the
+  subject contract), inventory/cases.txt + inventory/derive.mjs,
+  budgets.json, scope/cases.txt (the tranche for the next coding
+  phase), suite/self/run.mjs (the self-suite), SUITE.md, FINDINGS.md.
+- The runner is invoked as:
+      node bridge/run.mjs --subject <path> --cases <file|ALL> --out <path>
+  and writes {"results":[{"id","status":"pass"|"fail"|"unsupported",
+  "detail"?,"ms"?}]} — one result per requested case id.
+- The self-suite is invoked as:
+      node suite/self/run.mjs --out <path>
+  with the same results shape (statuses pass|fail).
+
 Deliverables, in this workspace:
 
 1. plan/plan.md — the campaign plan: the phase sequence (one line per

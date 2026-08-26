@@ -47,6 +47,13 @@ gradually into scope for the coding estate.
 
 MD
 cat "$BRIEF"
+cat <<'MD'
+
+The brief governs intent, scope, and acceptance emphasis. If the brief
+and this document disagree about file layouts, invocations, or output
+shapes, the platform contract below wins — it is what the platform
+verifies mechanically.
+MD
 [ -n "$GATE" ] && cat <<'MD'
 
 ## Starting state
