@@ -9,13 +9,15 @@
 set -euo pipefail
 NAME=$1; GOALF=$2; CAMPAIGN=$3; N=$4; CAPMIN=${5:-30}
 R=$HOME/control-runs/$NAME
+BINDIR=$(cd "$(dirname "$0")" && pwd)
 
 [ -d "$CAMPAIGN/plan" ] || { echo "compose-brief-world: no plan at $CAMPAIGN/plan"; exit 1; }
 
-rm -rf $R && mkdir -p $R/workspace $R/home/.pi/agent/extensions
+rm -rf $R && mkdir -p $R/workspace/platform $R/home/.pi/agent/extensions
 cp ~/src/trireme/experiments/kernel/extensions/trireme-shell.ts $R/home/.pi/agent/extensions/
 cp -a "$CAMPAIGN/plan" $R/workspace/plan
 [ -d "$CAMPAIGN/gate/current" ] && cp -al "$CAMPAIGN/gate/current/." $R/workspace/gate
+cp "$BINDIR/../PHASE-CONTRACT.md" "$BINDIR/../QE-CONTRACT.md" "$BINDIR/../GATE-CONTRACT.md" $R/workspace/platform/
 
 {
 cat <<'MD'
@@ -34,6 +36,13 @@ runner, inventory, budgets, the in-scope tranche (gate/scope/), the
 self-suite, its docs, and the acceptance corpus (gate/tests/). Probe
 freely; everything is read-only.
 
+The platform's fixed contracts are in platform/ — deliverable layouts,
+invocations, and bank rules for each phase type. A brief governs
+intent, scope, and acceptance emphasis; NEVER re-specify or alter the
+platform's layouts or invocations (the cohort receives those verbatim
+from the platform, and where a brief disagrees, the platform wins).
+Quote them only exactly.
+
 Deliver exactly one file: **briefs/phase-$N.md** — the brief the
 phase-$N cohort will work from. Its FIRST line must be exactly
 \`TYPE: qe\` or \`TYPE: code\`, matching the plan's type for phase $N.
@@ -42,7 +51,8 @@ and their world — never plan.md — so make it self-contained. Ground it
 in what is actually banked (the real contract, the real tranche), not
 in what the plan predicted.
 
-Work only inside this directory. plan/ and gate/ are read-only.
+Work only inside this directory. plan/, gate/, and platform/ are
+read-only.
 MD
 } > $R/workspace/MANDATE.md
 

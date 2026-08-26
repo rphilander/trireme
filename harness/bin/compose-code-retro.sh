@@ -14,12 +14,13 @@ NAME=$1; TESTS=$2; GOALF=$3; BRIEF=$4; CAMPAIGN=$5; shift 5
 R=$HOME/control-runs/$NAME
 BINDIR=$(cd "$(dirname "$0")" && pwd)
 
-rm -rf $R && mkdir -p $R/workspace/candidates $R/home/.pi/agent/extensions
+rm -rf $R && mkdir -p $R/workspace/candidates $R/workspace/platform $R/home/.pi/agent/extensions
 echo code > $R/TYPE
 cp ~/src/trireme/experiments/kernel/extensions/trireme-shell.ts $R/home/.pi/agent/extensions/
 cp -al "$TESTS" $R/workspace/tests
 cp -al "$CAMPAIGN/gate/current/." $R/workspace/gate
 [ -d "$CAMPAIGN/plan" ] && cp -a "$CAMPAIGN/plan" $R/workspace/plan
+cp "$BINDIR/../PHASE-CONTRACT.md" "$BINDIR/../QE-CONTRACT.md" "$BINDIR/../GATE-CONTRACT.md" $R/workspace/platform/
 
 CAND_LIST=""
 for C in "$@"; do
@@ -88,8 +89,12 @@ Deliver, in this order:
 3. briefs/phase-<N>.md — the brief for the NEXT phase per plan/plan.md
    (first line exactly `TYPE: qe` or `TYPE: code`). A brief is the
    only channel to its cohort — self-contained, informed by what this
-   cohort's work just taught you. If the plan itself needs revising,
-   say so in RETRO.md.
+   cohort's work just taught you. The platform's fixed contracts are
+   in platform/: a brief governs intent and scope and must never
+   re-specify or alter the platform's deliverable layouts or
+   invocations (quote them only exactly; where a brief disagrees, the
+   platform wins). If the plan itself needs revising, say so in
+   RETRO.md.
 
 Work only inside this directory. tests/, gate/, plan/, and candidates/
 are read-only.

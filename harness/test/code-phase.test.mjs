@@ -91,8 +91,10 @@ test("compose-code-retro: candidates + GRADE facts + stamps + next-brief deliver
   assert.match(fs.readFileSync(path.join(W, "candidates/cw-1/VALIDATION.txt"), "utf8"), /2 pass/);
   assert.match(fs.readFileSync(path.join(W, "candidates/cw-2/VALIDATION.txt"), "utf8"), /0 pass/);
   assert.ok(fs.existsSync(path.join(W, "candidates/cw-1/GRADE.json")));
-  // the gate ships for probe-based judgment; the plan for brief authorship
+  // the gate ships for probe-based judgment; the plan for brief authorship;
+  // the platform contracts so the authored brief cannot re-invent interfaces
   assert.ok(fs.existsSync(path.join(W, "gate/bridge/run.mjs")));
+  assert.ok(fs.existsSync(path.join(W, "platform/PHASE-CONTRACT.md")));
   assert.equal(fs.readFileSync(path.join(R, "TYPE"), "utf8").trim(), "code");
   const mandate = fs.readFileSync(path.join(W, "MANDATE.md"), "utf8");
   assert.match(mandate, /BANK: <run-name>/);
@@ -135,11 +137,16 @@ test("compose-brief-world: plan + gate visible, next-brief deliverable, TYPE con
   const R = path.join(H, "control-runs/bw-1");
   assert.ok(fs.existsSync(path.join(R, "workspace/plan/plan.md")));
   assert.ok(fs.existsSync(path.join(R, "workspace/gate/bridge/run.mjs")));
+  // the platform's fixed contracts ship into brief-authoring worlds so a
+  // brief cannot re-invent layouts or invocations
+  assert.ok(fs.existsSync(path.join(R, "workspace/platform/PHASE-CONTRACT.md")));
+  assert.ok(fs.existsSync(path.join(R, "workspace/platform/QE-CONTRACT.md")));
   const mandate = fs.readFileSync(path.join(R, "workspace/MANDATE.md"), "utf8");
   assert.match(mandate, /Build a frobnicator as a Node package\./);
   assert.match(mandate, /briefs\/phase-2\.md/);
   assert.match(mandate, /TYPE: qe|TYPE: code/);
   assert.match(mandate, /self-contained/i);
+  assert.match(mandate, /never re-specify|do not re-specify/i);
   const settings = JSON.parse(fs.readFileSync(path.join(R, "settings.json"), "utf8"));
   assert.ok(settings.filesystem.denyWrite.some((p) => p.endsWith("/workspace/plan")));
   assert.ok(settings.filesystem.denyWrite.some((p) => p.endsWith("/workspace/gate")));
