@@ -8,8 +8,11 @@ set -euo pipefail
 CAMPAIGN=$1; W=$2; OUT=$3
 fail(){ echo "REJECT: $*"; exit 1; }
 
-GATE=$CAMPAIGN/gate/current
-[ -d "$GATE" ] || fail "campaign has no banked gate at $GATE"
+# resolve the current symlink to the real entry: a gate runner's entry
+# guard (lexical argv[1] vs real module path) silently no-ops when invoked
+# through a symlinked path
+GATE=$(readlink -f "$CAMPAIGN/gate/current" 2>/dev/null || true)
+[ -n "$GATE" ] && [ -d "$GATE" ] || fail "campaign has no banked gate at $CAMPAIGN/gate/current"
 [ -d "$W/product" ] || fail "missing deliverable: product/"
 
 LOG=$(mktemp)

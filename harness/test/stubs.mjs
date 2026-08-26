@@ -18,6 +18,13 @@ export function write(p, c, { exec = false } = {}) {
 // production convention.
 export const GOOD_RUNNER = `
 import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+// entry guard exactly as banked gates write it: lexical argv[1] vs real
+// module path — a symlinked invocation path silently no-ops (the bug class
+// grade-code must defend against by resolving the gate path first)
+const isEntry = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (!isEntry) process.exit(0);
 const arg = (k) => { const i = process.argv.indexOf(k); return i < 0 ? undefined : process.argv[i + 1]; };
 const casesArg = arg("--cases");
 const ids = casesArg === "ALL"
