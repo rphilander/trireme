@@ -22,10 +22,10 @@ CAND_LIST=""
 for C in "$@"; do
   D=$R/workspace/candidates/$C
   mkdir -p $D
-  # full module surface (never the candidate's own tests hardlink)
-  for item in bridge inventory contract.d.ts budgets.json scope suite SUITE.md FINDINGS.md; do
-    [ -e $HOME/control-runs/$C/workspace/$item ] && cp -a $HOME/control-runs/$C/workspace/$item $D/ || true
-  done
+  # the whole workspace — exactly what banking would adopt — minus the
+  # corpus hardlink and the mandate
+  find $HOME/control-runs/$C/workspace -mindepth 1 -maxdepth 1 \
+       ! -name tests ! -name MANDATE.md -exec cp -a {} $D/ \;
   cat $(find $HOME/control-runs/$C/home/.pi/agent/sessions -name '*.jsonl' | sort) > $D/transcript.jsonl
   set +e
   bash $BINDIR/validate-qe.sh $HOME/control-runs/$C/workspace > $D/VALIDATION.txt 2>&1

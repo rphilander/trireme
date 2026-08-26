@@ -19,6 +19,10 @@ test("qe retro world: candidates, VALIDATION facts, transcripts, brief, verdict 
   const good = qeWorkspace();
   fs.mkdirSync(path.join(H, "control-runs/qx-1"), { recursive: true });
   fs.cpSync(good, path.join(H, "control-runs/qx-1/workspace"), { recursive: true });
+  // extra root-level code outside the fixed layout is part of the module
+  // (banking adopts the whole workspace) and must reach the retro
+  write(path.join(H, "control-runs/qx-1/workspace/lib/helper.mjs"), "// shared");
+  write(path.join(H, "control-runs/qx-1/workspace/tests/decoy.js"), "// corpus hardlink stand-in");
   const bad = qeWorkspace({ omit: ["contract", "budgets"] });
   fs.mkdirSync(path.join(H, "control-runs/qx-2"), { recursive: true });
   fs.cpSync(bad, path.join(H, "control-runs/qx-2/workspace"), { recursive: true });
@@ -36,6 +40,10 @@ test("qe retro world: candidates, VALIDATION facts, transcripts, brief, verdict 
   assert.ok(fs.existsSync(path.join(W, "candidates/qx-1/bridge/run.mjs")));
   assert.ok(fs.existsSync(path.join(W, "candidates/qx-1/scope/cases.txt")));
   assert.ok(fs.existsSync(path.join(W, "candidates/qx-1/suite/self/run.mjs")));
+  assert.ok(fs.existsSync(path.join(W, "candidates/qx-1/lib/helper.mjs")),
+    "whole workspace carried (what banking would adopt), not a whitelist");
+  assert.ok(!fs.existsSync(path.join(W, "candidates/qx-1/tests")), "candidate's corpus hardlink never carried");
+  assert.ok(!fs.existsSync(path.join(W, "candidates/qx-1/MANDATE.md")));
   assert.ok(fs.existsSync(path.join(W, "candidates/qx-1/transcript.jsonl")));
   assert.match(fs.readFileSync(path.join(W, "candidates/qx-1/VALIDATION.txt"), "utf8"), /OK:/);
   assert.match(fs.readFileSync(path.join(W, "candidates/qx-2/VALIDATION.txt"), "utf8"), /REJECT/);

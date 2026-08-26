@@ -26,8 +26,11 @@ red, document it, never weaken it.
     SUITE.md              internal test families + scope rationale
     FINDINGS.md           currently-red internal tests, each with the claimed defect
 
-A later QE phase receives the whole banked module as its editable
-starting state and must leave the same layout behind.
+The module is the WHOLE workspace (everything except tests/ and
+MANDATE.md): supporting code outside the fixed layout (lib/, tools/,
+...) is legal, is carried into the retro world, and is banked with the
+module. A later QE phase receives the whole banked module as its
+editable starting state and must leave the same layout behind.
 
 ## The self-suite
 
