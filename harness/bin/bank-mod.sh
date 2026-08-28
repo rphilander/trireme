@@ -7,6 +7,8 @@
 # needles line. VOID on any floor failure; REDO recorded.
 # Exit: 0 banked · 2 VOID · 3 REDO · 1 mechanical error
 set -euo pipefail
+# systemd units do not source .bashrc; make the toolchain reachable
+command -v node >/dev/null 2>&1 || export PATH="$HOME/.local/lib/node/bin:$PATH"
 CAMPAIGN=$1; RETRO=$2
 RD=$HOME/control-runs/$RETRO
 BINDIR=$(cd "$(dirname "$0")" && pwd)

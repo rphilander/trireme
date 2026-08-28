@@ -9,6 +9,8 @@
 #         (Bootstrap suites are born red/uncompiled by design; their
 #         substance is the retro's judgment.)
 set -euo pipefail
+# systemd units do not source .bashrc; make the toolchain reachable
+command -v node >/dev/null 2>&1 || export PATH="$HOME/.local/lib/node/bin:$PATH"
 W=$1; MODULE=$2; MODE=$3; BASELINE=${4:-}
 fail(){ echo "REJECT: $*"; exit 1; }
 [ -d "$W/modules/$MODULE" ] || fail "missing module dir: modules/$MODULE"

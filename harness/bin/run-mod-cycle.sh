@@ -11,6 +11,8 @@
 # The framework holds no opinions: cohorts produce, retros judge,
 # banks enforce. This script only sequences and waits.
 set -euo pipefail
+# systemd units do not source .bashrc; make the toolchain reachable
+command -v node >/dev/null 2>&1 || export PATH="$HOME/.local/lib/node/bin:$PATH"
 CAMPAIGN=$1; N=$2; shift 2
 FROM="qe-cohort"; DRY=0
 while [ $# -gt 0 ]; do

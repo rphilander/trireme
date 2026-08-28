@@ -111,3 +111,18 @@ test("REDO recorded, nothing banked", (t) => {
   assert.ok(!fs.existsSync(path.join(C, "trunk")));
   assert.match(fs.readFileSync(path.join(C, "history.log"), "utf8"), /REDO/);
 });
+
+test("validate-mod works under a bare systemd-like PATH", (t) => {
+  if (!hasPayload) { t.skip("payload not built"); return; }
+  const { H } = fakeHome();
+  mkCandidate(H, "q-path", { withCode: false });
+  const r = (() => {
+    try {
+      return { code: 0, out: execFileSync("bash", [path.join(BIN, "validate-mod.sh"),
+        path.join(H, "control-runs/q-path/workspace"), "interval", "qe"],
+        { encoding: "utf8", env: { HOME: process.env.HOME, PATH: "/usr/bin:/bin" } }) };
+    } catch (e) { return { code: e.status, out: String(e.stdout) + String(e.stderr) }; }
+  })();
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /OK: qe candidate/);
+});
