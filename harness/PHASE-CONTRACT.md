@@ -65,3 +65,31 @@ beyond these)
 Phase 1 of every campaign is a qe phase: coding candidates are graded
 by the last-banked gate, so nothing can be graded before a gate
 exists. validate-plan.sh enforces the marker on plan v1.
+
+## Modular mode (charter: wiki harness/modular-mode.md)
+
+Once a campaign goes modular, the unit of work is the CYCLE: one
+module, one brief, two cohorts. The brief's machine header:
+
+    TYPE: cycle
+    MODULE: <name>
+    KIND: noun|verb|shell
+    DEPENDS: <banked module names>   (absent for leaf modules)
+
+- The SAME brief drives both halves (perspective separation): the QE
+  cohort authors modules/<name>/test/ (doc + opaque) from it; the
+  coding cohort implements the module against the banked suite,
+  never editing it. The half is chosen by which composer/retro runs
+  and stamped into the retro dir for bank-mod dispatch.
+- Worlds are corpus-free and O(1): own module writable (qe: test/
+  only), declared deps mounted interface-only (.d.ts + compiled .js +
+  doc tests), platform payload read-only.
+- bank-mod floors: qe half — doc+opaque structure, lint; code half —
+  compile-clean, lint-clean, module suite green, ledger accretion
+  (additions + orphan deletions only; a changed selfHash is an illegal
+  edit). Entries are the previous trunk entry with the winner's module
+  half overlaid; isolated recheck before current moves; VOID removes
+  the entry.
+- Banked source and banked tests are frozen at file level in later
+  worlds; change is accretion (f2, @superseded-by) and orphan
+  collection, per the charter.

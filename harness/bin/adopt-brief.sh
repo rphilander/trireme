@@ -9,8 +9,8 @@ F=$HOME/control-runs/$RUN/workspace/$REL
 [ -f "$F" ] || { echo "adopt-brief: not found: $F"; exit 1; }
 T=$(grep -m1 -vE '^\s*$' "$F" | sed -E 's/[#*_`]//g; s/^\s+|\s+$//g')
 case "$T" in
-  "TYPE: qe"|"TYPE: code") ;;
-  *) echo "adopt-brief: first line must be 'TYPE: qe' or 'TYPE: code' (got: $T)"; exit 1 ;;
+  "TYPE: qe"|"TYPE: code"|"TYPE: cycle") ;;
+  *) echo "adopt-brief: first line must be 'TYPE: qe', 'TYPE: code', or 'TYPE: cycle' (got: $T)"; exit 1 ;;
 esac
 DEST=$CAMPAIGN/plan/briefs/$(basename "$F")
 [ ! -e "$DEST" ] || { echo "adopt-brief: $DEST already exists"; exit 1; }

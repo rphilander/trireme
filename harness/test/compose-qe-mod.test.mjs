@@ -39,7 +39,7 @@ test("bootstrap QE world: test-only writable, born-red framing, doc/opaque deliv
   const { H, GOAL } = fakeHome();
   const C = mkCampaign(H);
   const BRIEF = path.join(H, "brief.md");
-  write(BRIEF, "TYPE: qe\nMODULE: parser\nKIND: verb\nDEPENDS: tokens\n\nSuite for the parser verbs.\n");
+  write(BRIEF, "TYPE: cycle\nMODULE: parser\nKIND: verb\nDEPENDS: tokens\n\nSuite for the parser verbs.\n");
   const r = compose(H, ["qmw-1", GOAL, BRIEF, C, "45"]);
   assert.equal(r.code, 0, r.out);
   const R = path.join(H, "control-runs/qmw-1");
@@ -65,7 +65,7 @@ test("reopen QE world: interface mounted, banked test sources frozen, accretion 
   const { H, GOAL } = fakeHome();
   const C = mkCampaign(H);
   const BRIEF = path.join(H, "brief2.md");
-  write(BRIEF, "TYPE: qe\nMODULE: lexer\nKIND: verb\n\nPin more lexer behavior.\n");
+  write(BRIEF, "TYPE: cycle\nMODULE: lexer\nKIND: verb\n\nPin more lexer behavior.\n");
   const r = compose(H, ["qmw-2", GOAL, BRIEF, C, "45"]);
   assert.equal(r.code, 0, r.out);
   const R = path.join(H, "control-runs/qmw-2");
@@ -83,7 +83,7 @@ test("header validation: code brief refused", (t) => {
   const { H, GOAL } = fakeHome();
   const C = mkCampaign(H);
   const B = path.join(H, "bad.md");
-  write(B, "TYPE: code\nMODULE: x\nKIND: verb\n\nBody.\n");
+  write(B, "TYPE: qe\nMODULE: x\nKIND: verb\n\nBody.\n");
   const r = compose(H, ["qmw-bad", GOAL, B, C, "45"]);
   assert.notEqual(r.code, 0);
   assert.match(r.out, /TYPE/);

@@ -100,3 +100,22 @@ test("adopt-plan: invalid plan → refuse, nothing adopted", () => {
   assert.notEqual(r.code, 0);
   assert.ok(!fs.existsSync(path.join(CAMPAIGN, "plan")));
 });
+
+test("validate-plan: modular cycle briefs — conformant, leaf rule, header rules", () => {
+  const W = fs.mkdtempSync(path.join(SCRATCH, "mplan-"));
+  write(path.join(W, "plan/plan.md"), "# module map\n");
+  write(path.join(W, "plan/briefs/cycle-1.md"), "TYPE: cycle\nMODULE: values-core\nKIND: noun\n\nBody.\n");
+  const ok = run("validate-plan.sh", [W]);
+  assert.equal(ok.code, 0, ok.out);
+  assert.match(ok.out, /modular plan conformant/);
+
+  write(path.join(W, "plan/briefs/cycle-1.md"), "TYPE: cycle\nMODULE: x\nKIND: noun\nDEPENDS: y\n\nBody.\n");
+  const leaf = run("validate-plan.sh", [W]);
+  assert.notEqual(leaf.code, 0);
+  assert.match(leaf.out, /leaf/);
+
+  write(path.join(W, "plan/briefs/cycle-1.md"), "TYPE: cycle\nMODULE: x\nKIND: widget\n\nBody.\n");
+  const kind = run("validate-plan.sh", [W]);
+  assert.notEqual(kind.code, 0);
+  assert.match(kind.out, /KIND/);
+});

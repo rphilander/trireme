@@ -20,7 +20,7 @@ PLATFORM=$BINDIR/../platform
 
 hdr(){ grep -m1 -iE "^[#* ]*$1:" "$BRIEF" | sed -E "s/^[#* ]*$1:[[:space:]]*//i; s/[*\`]//g; s/[[:space:]]+$//" || true; }
 TYPE=$(hdr TYPE); MODULE=$(hdr MODULE); KIND=$(hdr KIND); DEPENDS=$(hdr DEPENDS)
-[ "$TYPE" = "qe" ] || { echo "compose-qe-mod-world: brief TYPE must be qe (got: ${TYPE:-none})"; exit 1; }
+[ "$TYPE" = "cycle" ] || { echo "compose-qe-mod-world: brief TYPE must be cycle (got: ${TYPE:-none})"; exit 1; }
 [ -n "$MODULE" ] || { echo "compose-qe-mod-world: brief has no MODULE: header"; exit 1; }
 case "$KIND" in noun|verb|shell) ;; *) echo "compose-qe-mod-world: KIND must be noun|verb|shell (got: ${KIND:-none})"; exit 1;; esac
 

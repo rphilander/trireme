@@ -43,7 +43,7 @@ test("bootstrap module world: fresh writable module, dep interface only, payload
   const { H, GOAL } = fakeHome();
   const C = mkCampaign(H);
   const BRIEF = path.join(H, "brief.md");
-  write(BRIEF, "TYPE: code\nMODULE: parser\nKIND: verb\nDEPENDS: tokens\n\nBuild the parser verbs over tokens.\n");
+  write(BRIEF, "TYPE: cycle\nMODULE: parser\nKIND: verb\nDEPENDS: tokens\n\nBuild the parser verbs over tokens.\n");
   const r = compose(H, ["mw-1", GOAL, BRIEF, C, "60"]);
   assert.equal(r.code, 0, r.out);
   const W = path.join(H, "control-runs/mw-1/workspace");
@@ -81,7 +81,7 @@ test("reopen world: banked own source frozen at file level, emitted js regenerab
   const { H, GOAL } = fakeHome();
   const C = mkCampaign(H);
   const BRIEF = path.join(H, "brief2.md");
-  write(BRIEF, "TYPE: code\nMODULE: lexer\nKIND: verb\n\nExpand the lexer: add lex2.\n");
+  write(BRIEF, "TYPE: cycle\nMODULE: lexer\nKIND: verb\n\nExpand the lexer: add lex2.\n");
   const r = compose(H, ["mw-2", GOAL, BRIEF, C, "60"]);
   assert.equal(r.code, 0, r.out);
   const W = path.join(H, "control-runs/mw-2/workspace");
@@ -96,10 +96,10 @@ test("header validation: wrong TYPE, missing MODULE, bad KIND, unbanked dep all 
   const { H, GOAL } = fakeHome();
   const C = mkCampaign(H);
   const cases = [
-    ["TYPE: qe\nMODULE: x\nKIND: verb\n", /TYPE/],
-    ["TYPE: code\nKIND: verb\n", /MODULE/],
-    ["TYPE: code\nMODULE: x\nKIND: widget\n", /KIND/],
-    ["TYPE: code\nMODULE: x\nKIND: verb\nDEPENDS: ghost\n", /ghost.*not banked|not banked/],
+    ["TYPE: code\nMODULE: x\nKIND: verb\n", /TYPE/],
+    ["TYPE: cycle\nKIND: verb\n", /MODULE/],
+    ["TYPE: cycle\nMODULE: x\nKIND: widget\n", /KIND/],
+    ["TYPE: cycle\nMODULE: x\nKIND: verb\nDEPENDS: ghost\n", /ghost.*not banked|not banked/],
   ];
   for (const [hdrs, re] of cases) {
     const B = path.join(H, `b-${Math.random().toString(36).slice(2)}.md`);
