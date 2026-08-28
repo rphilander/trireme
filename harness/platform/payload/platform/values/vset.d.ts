@@ -1,0 +1,13 @@
+import type { Value, VSet } from './core.js';
+export declare const empty: <T extends Value>() => VSet<T>;
+export declare const of: <T extends Value>(...xs: readonly T[]) => VSet<T>;
+export declare const from: <T extends Value>(xs: Iterable<T>) => VSet<T>;
+export declare const count: (s: VSet<Value>) => number;
+export declare const isEmpty: (s: VSet<Value>) => boolean;
+export declare const has: <T extends Value>(s: VSet<T>, x: T) => boolean;
+export declare const add: <T extends Value>(s: VSet<T>, x: T) => VSet<T>;
+export declare const remove: <T extends Value>(s: VSet<T>, x: T) => VSet<T>;
+export declare const union: <T extends Value>(a: VSet<T>, b: VSet<T>) => VSet<T>;
+export declare const intersect: <T extends Value>(a: VSet<T>, b: VSet<T>) => VSet<T>;
+export declare const subtract: <T extends Value>(a: VSet<T>, b: VSet<T>) => VSet<T>;
+export declare const toArray: <T extends Value>(s: VSet<T>) => T[];

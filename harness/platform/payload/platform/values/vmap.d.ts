@@ -1,0 +1,14 @@
+import type { Value, VMap } from './core.js';
+export declare const empty: <K extends Value, V extends Value>() => VMap<K, V>;
+export declare const of: <K extends Value, V extends Value>(entries: Iterable<[K, V]>) => VMap<K, V>;
+export declare const count: (m: VMap<Value, Value>) => number;
+export declare const isEmpty: (m: VMap<Value, Value>) => boolean;
+export declare const has: <K extends Value>(m: VMap<K, Value>, k: K) => boolean;
+export declare const get: <K extends Value, V extends Value>(m: VMap<K, V>, k: K) => V | undefined;
+export declare const getOr: <K extends Value, V extends Value>(m: VMap<K, V>, k: K, fallback: V) => V;
+export declare const set: <K extends Value, V extends Value>(m: VMap<K, V>, k: K, v: V) => VMap<K, V>;
+export declare const remove: <K extends Value, V extends Value>(m: VMap<K, V>, k: K) => VMap<K, V>;
+export declare const update: <K extends Value, V extends Value>(m: VMap<K, V>, k: K, fallback: V, f: (v: V) => V) => VMap<K, V>;
+export declare const keys: <K extends Value>(m: VMap<K, Value>) => K[];
+export declare const entries: <K extends Value, V extends Value>(m: VMap<K, V>) => [K, V][];
+export declare const reduce: <K extends Value, V extends Value, A>(m: VMap<K, V>, init: A, f: (acc: A, v: V, k: K) => A) => A;
