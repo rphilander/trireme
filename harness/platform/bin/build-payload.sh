@@ -25,5 +25,7 @@ cp dist/ledger/ledger.js payload/platform/ledger/
 cp ../CODE-CONTRACT.md payload/platform/
 # vendored toolchain (hardlink: large, immutable)
 cp -al node_modules/typescript payload/node_modules/typescript
+mkdir -p payload/node_modules/@types
+cp -al node_modules/@types/node payload/node_modules/@types/node
 
 echo "payload built: $P/payload"

@@ -93,7 +93,7 @@ f2 and note @superseded-by.
 
     node node_modules/typescript/lib/tsc.js -p tsconfig.json   # compile (must be clean)
     node platform/lint/check.js modules/$MODULE                # lint (must be clean)
-    node --test modules/$MODULE/test/                          # the module suite
+    node --test "modules/$MODULE/test/**/*.test.js"            # the module suite
     node platform/ledger/ledger.js modules/*                   # definitions/nodes ledger
 
 The platform verifies at the bank: compile-clean, lint-clean, ledger
