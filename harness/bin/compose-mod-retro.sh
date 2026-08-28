@@ -126,8 +126,10 @@ Deliver, in this order:
    fails). REDO declares no candidate deserves banking and a fresh
    cohort should run under a revised framing (state what must change).
 MD
-if [ "$HALF" = "code" ]; then cat <<'MD'
-3. briefs/<next>.md — the brief for the NEXT cycle per plan/plan.md
+if [ "$HALF" = "code" ]; then
+echo "3. briefs/cycle-${NEXT_CYCLE:-<next>}.md — EXACTLY that filename —"
+cat <<'MD'
+   the brief for the NEXT cycle per plan/plan.md
    (first lines `TYPE: cycle`, `MODULE: <name>`,
    `KIND: noun|verb|shell`, `DEPENDS: <banked modules>` — then a
    self-contained body both cohorts can build from). You close this

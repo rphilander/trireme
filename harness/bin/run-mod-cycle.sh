@@ -82,7 +82,7 @@ if step_wanted code-cohort; then
   wait_units 3600 "mcode$N-1" "mcode$N-2" "mcode$N-3"
 fi
 if step_wanted code-retro; then
-  run bash "$BINDIR/compose-mod-retro.sh" "mretro$N-code" "$GOALF" "$BRIEF" "$CAMPAIGN" code "mcode$N-1" "mcode$N-2" "mcode$N-3"
+  run env NEXT_CYCLE=$((N+1)) bash "$BINDIR/compose-mod-retro.sh" "mretro$N-code" "$GOALF" "$BRIEF" "$CAMPAIGN" code "mcode$N-1" "mcode$N-2" "mcode$N-3"
   launch "mretro$N-code" 3600
   wait_units 3600 "mretro$N-code"
 fi
@@ -92,10 +92,15 @@ fi
 if step_wanted adopt-next; then
   NEXT=$((N+1))
   if [ "$DRY" = 1 ]; then echo "DRY: adopt briefs/cycle-$NEXT.md"; else
-    if [ -f "$HOME/control-runs/mretro$N-code/workspace/briefs/cycle-$NEXT.md" ]; then
+    BD=$HOME/control-runs/mretro$N-code/workspace/briefs
+    if [ -f "$BD/cycle-$NEXT.md" ]; then
       run bash "$BINDIR/adopt-brief.sh" "$CAMPAIGN" "mretro$N-code" "briefs/cycle-$NEXT.md"
+    elif [ "$(ls "$BD"/*.md 2>/dev/null | wc -l)" = 1 ]; then
+      ONE=$(basename "$(ls "$BD"/*.md)")
+      say "NOTE: adopting briefs/$ONE as cycle-$NEXT.md (retro used a module-named file)"
+      run bash "$BINDIR/adopt-brief.sh" "$CAMPAIGN" "mretro$N-code" "briefs/$ONE" "cycle-$NEXT.md"
     else
-      say "ESCALATE: code retro delivered no briefs/cycle-$NEXT.md"
+      say "ESCALATE: code retro delivered no unambiguous next brief (briefs/: $(ls "$BD" 2>/dev/null | tr '\n' ' '))"
       exit 1
     fi
   fi
