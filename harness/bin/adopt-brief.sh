@@ -7,10 +7,12 @@ CAMPAIGN=$1; RUN=$2; REL=$3
 F=$HOME/control-runs/$RUN/workspace/$REL
 
 [ -f "$F" ] || { echo "adopt-brief: not found: $F"; exit 1; }
-T=$(grep -m1 -vE '^\s*$' "$F" | sed -E 's/[#*_`]//g; s/^\s+|\s+$//g')
+# header grep, same tolerance as the composers: a TYPE: line anywhere
+# in the header block (briefs conventionally open with a title)
+T=$(grep -m1 -iE '^[#* ]*TYPE:' "$F" | sed -E 's/^[#* ]*TYPE:[[:space:]]*//i; s/[*`]//g; s/[[:space:]]+$//' || true)
 case "$T" in
-  "TYPE: qe"|"TYPE: code"|"TYPE: cycle") ;;
-  *) echo "adopt-brief: first line must be 'TYPE: qe', 'TYPE: code', or 'TYPE: cycle' (got: $T)"; exit 1 ;;
+  qe|code|cycle) ;;
+  *) echo "adopt-brief: brief needs a 'TYPE: qe|code|cycle' header line (got: ${T:-none})"; exit 1 ;;
 esac
 DEST=$CAMPAIGN/plan/briefs/$(basename "$F")
 [ ! -e "$DEST" ] || { echo "adopt-brief: $DEST already exists"; exit 1; }
