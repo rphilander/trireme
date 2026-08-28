@@ -120,3 +120,25 @@ test("DEPENDS prose normalization: 'none (platform values only)' means leaf", (t
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /deps=\[\]/);
 });
+
+test("transitive runtime closure: dep's own imports mounted as runtime support", (t) => {
+  if (!fs.existsSync(path.join(PLATFORM, "payload/platform"))) { t.skip("payload not built"); return; }
+  const { H, GOAL } = fakeHome();
+  const C = path.join(H, "campaign");
+  const T = path.join(C, "trunk/entry-1/modules");
+  write(path.join(T, "b/index.js"), "export const b = 1;");
+  write(path.join(T, "b/index.d.ts"), "export declare const b: number;");
+  write(path.join(T, "b/test/doc/d.test.ts"), "// b doc");
+  write(path.join(T, "a/index.js"), "import { b } from '#modules/b/index.js';\nexport const a = b;");
+  write(path.join(T, "a/index.d.ts"), "export declare const a: number;");
+  fs.symlinkSync("entry-1", path.join(C, "trunk/current"));
+  const B = path.join(H, "b-trans.md");
+  write(B, "TYPE: cycle\nMODULE: c\nKIND: verb\nDEPENDS: a\n\nBody.\n");
+  const r = compose(H, ["mw-trans", GOAL, B, C, "60"]);
+  assert.equal(r.code, 0, r.out);
+  const W = path.join(H, "control-runs/mw-trans/workspace");
+  assert.ok(fs.existsSync(path.join(W, "modules/b/index.js")), "runtime closure mounted");
+  assert.ok(!fs.existsSync(path.join(W, "modules/b/test")), "no doc tests for undeclared deps");
+  const dw = JSON.parse(fs.readFileSync(path.join(H, "control-runs/mw-trans/settings.json"), "utf8")).filesystem.denyWrite;
+  assert.ok(dw.some((p) => p.endsWith("/modules/b")), "transitive mount write-denied");
+});

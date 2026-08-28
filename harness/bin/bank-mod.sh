@@ -24,8 +24,8 @@ DEC=$RD/workspace/DECISION.md
 
 LINE=$(grep -m1 -vE '^\s*$' "$DEC" | sed -E 's/[#*`]//g; s/^\s+|\s+$//g')
 case "$LINE" in
-  BANK:*) WINNER=$(echo "${LINE#BANK:}" | xargs) ;;
-  REDO:*) REASON=$(echo "${LINE#REDO:}" | xargs)
+  BANK:*) WINNER=$(echo "${LINE#BANK:}" | sed -E "s/^[[:space:]]+|[[:space:]]+$//g") ;;
+  REDO:*) REASON=$(echo "${LINE#REDO:}" | sed -E "s/^[[:space:]]+|[[:space:]]+$//g")
           hist "REDO type=$TYPE module=$MODULE retro=$RETRO reason: $REASON"
           echo "REDO: $REASON"; exit 3 ;;
   *) echo "bank-mod: DECISION.md first line is not a machine verdict: $LINE"; exit 1 ;;

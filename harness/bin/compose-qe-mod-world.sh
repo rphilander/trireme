@@ -58,6 +58,26 @@ for D in $DEPENDS; do
   [ -d "$SRC/test/doc" ] && { mkdir -p "$DST/test"; cp -a "$SRC/test/doc" "$DST/test/doc"; }
 done
 
+
+# runtime closure: a declared dep's compiled .js may import ITS own deps
+# (#modules/x/...) — mount those transitively as runtime support
+# (.js + .d.ts only; doc tests remain a declared-deps privilege)
+changed=1
+while [ "$changed" = 1 ]; do
+  changed=0
+  for need in $(grep -rhoE "#modules/[a-z0-9-]+/" "$R/workspace/modules" 2>/dev/null | sed 's|#modules/||; s|/$||' | sort -u); do
+    [ -d "$R/workspace/modules/$need" ] && continue
+    SRC=$TRUNK/modules/$need
+    [ -d "$SRC" ] || { echo "compose: runtime dep '$need' is not banked"; exit 1; }
+    mkdir -p "$R/workspace/modules/$need"
+    ( cd "$SRC" && find . \( -name '*.d.ts' -o -name '*.js' \) ! -path './test/*' ) | while IFS= read -r f; do
+      mkdir -p "$R/workspace/modules/$need/$(dirname "$f")"
+      cp "$SRC/$f" "$R/workspace/modules/$need/$f"
+    done
+    changed=1
+  done
+done
+
 {
 cat <<'MD'
 # QE phase — one module's suite
