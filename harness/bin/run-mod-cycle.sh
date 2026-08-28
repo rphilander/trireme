@@ -14,11 +14,13 @@ set -euo pipefail
 # systemd units do not source .bashrc; make the toolchain reachable
 command -v node >/dev/null 2>&1 || export PATH="$HOME/.local/lib/node/bin:$PATH"
 CAMPAIGN=$1; N=$2; shift 2
-FROM="qe-cohort"; DRY=0
+FROM="qe-cohort"; DRY=0; COHORT=""; NOADOPT=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --from) FROM=$2; shift 2 ;;
     --dry-run) DRY=1; shift ;;
+    --cohort) COHORT=$2; shift 2 ;;
+    --no-adopt) NOADOPT=1; shift ;;
     *) echo "unknown arg: $1"; exit 1 ;;
   esac
 done
@@ -61,15 +63,20 @@ step_wanted(){ # ordered gate: run steps at or after FROM
 }
 
 MODULE=$(grep -m1 -iE '^[#* ]*MODULE:' "$BRIEF" | sed -E 's/^[#* ]*MODULE:[[:space:]]*//i; s/[*`]//g' | xargs)
-say "=== cycle $N module=$MODULE from=$FROM dry=$DRY"
+if [ -z "$COHORT" ]; then
+  COHORT=$(grep -m1 -iE '^[#* ]*COHORT:' "$BRIEF" | sed -E 's/^[#* ]*COHORT:[[:space:]]*//i; s/[*`]//g' | xargs || true)
+fi
+case "$COHORT" in 1|2|3) ;; *) COHORT=3 ;; esac
+MEMBERS=$(seq 1 $COHORT)
+say "=== cycle $N module=$MODULE from=$FROM cohort=$COHORT dry=$DRY"
 
 if step_wanted qe-cohort; then
-  for i in 1 2 3; do run bash "$BINDIR/compose-qe-mod-world.sh" "mqe$N-$i" "$GOALF" "$BRIEF" "$CAMPAIGN" 45; done
-  for i in 1 2 3; do launch "mqe$N-$i" 2700; done
-  wait_units 2700 "mqe$N-1" "mqe$N-2" "mqe$N-3"
+  for i in $MEMBERS; do run bash "$BINDIR/compose-qe-mod-world.sh" "mqe$N-$i" "$GOALF" "$BRIEF" "$CAMPAIGN" 45; done
+  for i in $MEMBERS; do launch "mqe$N-$i" 2700; done
+  wait_units 2700 $(for i in $MEMBERS; do echo "mqe$N-$i"; done)
 fi
 if step_wanted qe-retro; then
-  run bash "$BINDIR/compose-mod-retro.sh" "mretro$N-qe" "$GOALF" "$BRIEF" "$CAMPAIGN" qe "mqe$N-1" "mqe$N-2" "mqe$N-3"
+  run bash "$BINDIR/compose-mod-retro.sh" "mretro$N-qe" "$GOALF" "$BRIEF" "$CAMPAIGN" qe $(for i in $MEMBERS; do echo "mqe$N-$i"; done)
   launch "mretro$N-qe" 3600
   wait_units 3600 "mretro$N-qe"
 fi
@@ -77,19 +84,19 @@ if step_wanted qe-bank; then
   run bash "$BINDIR/bank-mod.sh" "$CAMPAIGN" "mretro$N-qe"
 fi
 if step_wanted code-cohort; then
-  for i in 1 2 3; do run bash "$BINDIR/compose-mod-world.sh" "mcode$N-$i" "$GOALF" "$BRIEF" "$CAMPAIGN" 60; done
-  for i in 1 2 3; do launch "mcode$N-$i" 3600; done
-  wait_units 3600 "mcode$N-1" "mcode$N-2" "mcode$N-3"
+  for i in $MEMBERS; do run bash "$BINDIR/compose-mod-world.sh" "mcode$N-$i" "$GOALF" "$BRIEF" "$CAMPAIGN" 60; done
+  for i in $MEMBERS; do launch "mcode$N-$i" 3600; done
+  wait_units 3600 $(for i in $MEMBERS; do echo "mcode$N-$i"; done)
 fi
 if step_wanted code-retro; then
-  run env NEXT_CYCLE=$((N+1)) bash "$BINDIR/compose-mod-retro.sh" "mretro$N-code" "$GOALF" "$BRIEF" "$CAMPAIGN" code "mcode$N-1" "mcode$N-2" "mcode$N-3"
+  run env NEXT_CYCLE=$((N+1)) NO_NEXT_BRIEF=$NOADOPT bash "$BINDIR/compose-mod-retro.sh" "mretro$N-code" "$GOALF" "$BRIEF" "$CAMPAIGN" code $(for i in $MEMBERS; do echo "mcode$N-$i"; done)
   launch "mretro$N-code" 3600
   wait_units 3600 "mretro$N-code"
 fi
 if step_wanted code-bank; then
   run bash "$BINDIR/bank-mod.sh" "$CAMPAIGN" "mretro$N-code"
 fi
-if step_wanted adopt-next; then
+if step_wanted adopt-next && [ "$NOADOPT" = 0 ]; then
   NEXT=$((N+1))
   if [ "$DRY" = 1 ]; then echo "DRY: adopt briefs/cycle-$NEXT.md"; else
     BD=$HOME/control-runs/mretro$N-code/workspace/briefs

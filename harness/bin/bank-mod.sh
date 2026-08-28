@@ -7,6 +7,11 @@
 # needles line. VOID on any floor failure; REDO recorded.
 # Exit: 0 banked · 2 VOID · 3 REDO · 1 mechanical error
 set -euo pipefail
+# serialize campaign mutations (parallel cycles bank concurrently)
+_LOCK_DIR=${CAMPAIGN:-$1}
+mkdir -p "$_LOCK_DIR" 2>/dev/null || true
+exec 9>"$_LOCK_DIR/.campaign.lock"
+flock 9
 # systemd units do not source .bashrc; make the toolchain reachable
 command -v node >/dev/null 2>&1 || export PATH="$HOME/.local/lib/node/bin:$PATH"
 CAMPAIGN=$1; RETRO=$2

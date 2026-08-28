@@ -138,3 +138,13 @@ test("run-mod-cycle dry-run: full step sequence in order, resumable --from", () 
   assert.ok(!from.includes("mqe3-1"), "--from skips earlier steps");
   assert.ok(from.includes("mcode3-1"));
 });
+
+test("run-mod-cycle: --cohort 1 shrinks the cohort; --no-adopt skips adoption", () => {
+  const H = process.env.HOME;
+  const dry = execFileSync("bash", [path.join(BIN, "run-mod-cycle.sh"),
+    path.join(H, "control-runs/campaign-mod"), "3", "--dry-run", "--cohort", "1", "--no-adopt"], { encoding: "utf8" });
+  assert.ok(dry.includes("mqe3-1"));
+  assert.ok(!dry.includes("mqe3-2"), "cohort of 1");
+  assert.ok(!dry.includes("adopt briefs"), "no-adopt");
+  assert.match(dry, /cohort=1/);
+});

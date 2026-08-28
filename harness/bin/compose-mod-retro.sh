@@ -126,7 +126,7 @@ Deliver, in this order:
    fails). REDO declares no candidate deserves banking and a fresh
    cohort should run under a revised framing (state what must change).
 MD
-if [ "$HALF" = "code" ]; then
+if [ "$HALF" = "code" ] && [ "${NO_NEXT_BRIEF:-0}" != 1 ]; then
 echo "3. briefs/cycle-${NEXT_CYCLE:-<next>}.md — EXACTLY that filename —"
 cat <<'MD'
    the brief for the NEXT cycle per plan/plan.md

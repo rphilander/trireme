@@ -126,3 +126,27 @@ test("validate-mod works under a bare systemd-like PATH", (t) => {
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /OK: qe candidate/);
 });
+
+test("concurrent banks serialize on the campaign lock (distinct entries)", (t) => {
+  if (!hasPayload) { t.skip("payload not built"); return; }
+  const { H } = fakeHome();
+  const C = path.join(H, "campaign");
+  mkCandidate(H, "q-a", { withCode: false });
+  fs.cpSync(path.join(H, "control-runs/q-a"), path.join(H, "control-runs/q-b"), { recursive: true });
+  fs.renameSync(path.join(H, "control-runs/q-b/workspace/modules/interval"),
+    path.join(H, "control-runs/q-b/workspace/modules/span"));
+  mkRetro(H, "retro-a", { type: "qe", module: "interval", winner: "q-a" });
+  mkRetro(H, "retro-b", { type: "qe", module: "span", winner: "q-b" });
+  return import("node:child_process").then(({ execFile }) => new Promise((resolve, reject) => {
+    let done = 0; const finish = (err) => { if (err) return reject(err); if (++done === 2) resolve(); };
+    for (const r of ["retro-a", "retro-b"]) {
+      execFile("bash", [path.join(BIN, "bank-mod.sh"), C, r],
+        { env: { ...process.env, HOME: H } }, (e) => finish(e));
+    }
+  })).then(() => {
+    assert.ok(fs.existsSync(path.join(C, "trunk/entry-1")));
+    assert.ok(fs.existsSync(path.join(C, "trunk/entry-2")), "second bank got a distinct entry");
+    const hist = fs.readFileSync(path.join(C, "history.log"), "utf8");
+    assert.equal((hist.match(/BANK qe/g) || []).length, 2);
+  });
+});

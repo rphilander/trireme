@@ -3,6 +3,11 @@
 # an agent-authored brief into the campaign plan repo (kernel-authored
 # commit citing the run). Refuses an illegal TYPE line or an overwrite.
 set -euo pipefail
+# serialize campaign mutations (parallel cycles bank concurrently)
+_LOCK_DIR=${CAMPAIGN:-$1}
+mkdir -p "$_LOCK_DIR" 2>/dev/null || true
+exec 9>"$_LOCK_DIR/.campaign.lock"
+flock 9
 CAMPAIGN=$1; RUN=$2; REL=$3; DEST_NAME=${4:-}
 F=$HOME/control-runs/$RUN/workspace/$REL
 
