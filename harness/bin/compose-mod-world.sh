@@ -23,6 +23,9 @@ PLATFORM=$BINDIR/../platform
 
 hdr(){ grep -m1 -iE "^[#* ]*$1:" "$BRIEF" | sed -E "s/^[#* ]*$1:[[:space:]]*//i; s/[*\`]//g; s/[[:space:]]+$//" || true; }
 TYPE=$(hdr TYPE); MODULE=$(hdr MODULE); KIND=$(hdr KIND); DEPENDS=$(hdr DEPENDS)
+# normalize DEPENDS: strip parentheticals; none/dash mean empty
+DEPENDS=$(echo "$DEPENDS" | sed -E 's/\([^)]*\)//g' | xargs || true)
+case "$DEPENDS" in none|None|NONE|-) DEPENDS="" ;; esac
 [ "$TYPE" = "cycle" ] || { echo "compose-mod-world: brief TYPE must be cycle (got: ${TYPE:-none})"; exit 1; }
 [ -n "$MODULE" ] || { echo "compose-mod-world: brief has no MODULE: header"; exit 1; }
 case "$KIND" in noun|verb|shell) ;; *) echo "compose-mod-world: KIND must be noun|verb|shell (got: ${KIND:-none})"; exit 1;; esac

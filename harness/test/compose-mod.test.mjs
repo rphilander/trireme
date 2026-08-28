@@ -109,3 +109,14 @@ test("header validation: wrong TYPE, missing MODULE, bad KIND, unbanked dep all 
     assert.match(r.out, re);
   }
 });
+
+test("DEPENDS prose normalization: 'none (platform values only)' means leaf", (t) => {
+  if (!fs.existsSync(path.join(PLATFORM, "payload/platform"))) { t.skip("payload not built"); return; }
+  const { H, GOAL } = fakeHome();
+  const C = mkCampaign(H);
+  const B = path.join(H, "b-none.md");
+  write(B, "TYPE: cycle\nMODULE: fresh\nKIND: noun\nDEPENDS: none (platform values only)\n\nBody.\n");
+  const r = compose(H, ["mw-none", GOAL, B, C, "60"]);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /deps=\[\]/);
+});

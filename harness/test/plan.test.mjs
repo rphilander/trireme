@@ -119,3 +119,22 @@ test("validate-plan: modular cycle briefs — conformant, leaf rule, header rule
   assert.notEqual(kind.code, 0);
   assert.match(kind.out, /KIND/);
 });
+
+test("run-mod-cycle dry-run: full step sequence in order, resumable --from", () => {
+  const H = process.env.HOME;
+  const dry = execFileSync("bash", [path.join(BIN, "run-mod-cycle.sh"),
+    path.join(H, "control-runs/campaign-mod"), "3", "--dry-run"], { encoding: "utf8" });
+  const order = ["compose-qe-mod-world.sh mqe3-1", "launch mqe3-1", "wait mqe3-1",
+    "compose-mod-retro.sh mretro3-qe", "bank-mod.sh", "compose-mod-world.sh mcode3-1",
+    "compose-mod-retro.sh mretro3-code", "adopt briefs/cycle-4.md"];
+  let pos = -1;
+  for (const step of order) {
+    const at = dry.indexOf(step);
+    assert.ok(at > pos, `step out of order or missing: ${step}`);
+    pos = at;
+  }
+  const from = execFileSync("bash", [path.join(BIN, "run-mod-cycle.sh"),
+    path.join(H, "control-runs/campaign-mod"), "3", "--dry-run", "--from", "code-cohort"], { encoding: "utf8" });
+  assert.ok(!from.includes("mqe3-1"), "--from skips earlier steps");
+  assert.ok(from.includes("mcode3-1"));
+});
