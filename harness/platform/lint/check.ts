@@ -306,7 +306,9 @@ export const lintFiles = (files: string[], kernel: RegExp = DEFAULT_KERNEL): Fin
     const sf = program.getSourceFile(f);
     if (!sf || kernel.test(sf.fileName)) continue;
     findings.push(...lintSourceFile(sf));
-    findings.push(...lintLinearState(program, sf));
+    // linear-state is threading discipline for implementation code; test
+    // suites legitimately read state values repeatedly when asserting
+    if (!/[/\\]test[/\\]/.test(sf.fileName)) findings.push(...lintLinearState(program, sf));
   }
   return findings;
 };

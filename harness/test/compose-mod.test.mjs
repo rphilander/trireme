@@ -138,6 +138,7 @@ test("transitive runtime closure: dep's own imports mounted as runtime support",
   assert.equal(r.code, 0, r.out);
   const W = path.join(H, "control-runs/mw-trans/workspace");
   assert.ok(fs.existsSync(path.join(W, "modules/b/index.js")), "runtime closure mounted");
+  assert.ok(!fs.existsSync(path.join(W, "modules/b/index.d.ts")), "type-invisible: no d.ts for runtime plumbing");
   assert.ok(!fs.existsSync(path.join(W, "modules/b/test")), "no doc tests for undeclared deps");
   const dw = JSON.parse(fs.readFileSync(path.join(H, "control-runs/mw-trans/settings.json"), "utf8")).filesystem.denyWrite;
   assert.ok(dw.some((p) => p.endsWith("/modules/b")), "transitive mount write-denied");

@@ -70,7 +70,7 @@ while [ "$changed" = 1 ]; do
     SRC=$TRUNK/modules/$need
     [ -d "$SRC" ] || { echo "compose: runtime dep '$need' is not banked"; exit 1; }
     mkdir -p "$R/workspace/modules/$need"
-    ( cd "$SRC" && find . \( -name '*.d.ts' -o -name '*.js' \) ! -path './test/*' ) | while IFS= read -r f; do
+    ( cd "$SRC" && find . -name '*.js' ! -path './test/*' ) | while IFS= read -r f; do
       mkdir -p "$R/workspace/modules/$need/$(dirname "$f")"
       cp "$SRC/$f" "$R/workspace/modules/$need/$f"
     done

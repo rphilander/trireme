@@ -41,6 +41,9 @@ E=$CAMPAIGN/trunk/entry-$M
 
 if [ -d "$CAMPAIGN/trunk/current" ]; then
   cp -al "$CAMPAIGN/trunk/current/." "$E"
+  rm -rf "$E/platform" "$E/node_modules"
+  cp -al "$BINDIR/../platform/payload/platform" "$E/platform"
+  cp -al "$BINDIR/../platform/payload/node_modules" "$E/node_modules"
   # keep a real ledger baseline of the previous entry for the accretion check
   BASE=$(mktemp)
   ( cd "$CAMPAIGN/trunk/current" && node platform/ledger/ledger.js modules/* ) > "$BASE" 2>/dev/null || BASE=""

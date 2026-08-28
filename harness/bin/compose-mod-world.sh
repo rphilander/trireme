@@ -69,7 +69,7 @@ while [ "$changed" = 1 ]; do
     SRC=$TRUNK/modules/$need
     [ -d "$SRC" ] || { echo "compose: runtime dep '$need' is not banked"; exit 1; }
     mkdir -p "$R/workspace/modules/$need"
-    ( cd "$SRC" && find . \( -name '*.d.ts' -o -name '*.js' \) ! -path './test/*' ) | while IFS= read -r f; do
+    ( cd "$SRC" && find . -name '*.js' ! -path './test/*' ) | while IFS= read -r f; do
       mkdir -p "$R/workspace/modules/$need/$(dirname "$f")"
       cp "$SRC/$f" "$R/workspace/modules/$need/$f"
     done
@@ -93,7 +93,9 @@ first; the lint enforces it and the bank rejects violations. Your
 module's own tests (modules/$MODULE/test/) are the QE estate's
 deliverable: you make them pass; you never edit them. Dependencies you
 declared are present as interfaces only (.d.ts + compiled .js + their
-doc tests, which are executable documentation).
+doc tests, which are executable documentation). Any OTHER module
+directories you may notice are runtime plumbing (compiled .js your
+dependencies load) — reading them is never necessary or useful.
 
 ## This phase's brief (from the plan, verbatim)
 

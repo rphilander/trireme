@@ -116,3 +116,22 @@ export const f = (s0: EnvState, k: number): EnvState => {
 `);
   assert.deepEqual(good, []);
 });
+
+test('linear-state: exempt in test trees (suites re-read state when asserting)', () => {
+  const dir = fs.mkdtempSync(path.join(SCRATCH, 'lint-'));
+  fs.mkdirSync(path.join(dir, 'test/doc'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'index.ts'), `
+type EnvState = { readonly tag: 'env'; readonly n: number };
+export const mk = (): EnvState => ({ tag: 'env', n: 1 });
+export const bump = (s: EnvState): EnvState => ({ tag: 'env', n: s.n + 1 });
+`);
+  fs.writeFileSync(path.join(dir, 'test/doc/d.test.ts'), `
+import { mk, bump } from '../../index.js';
+const b = bump(mk());
+const x: number = (b as { n: number }).n + (b as { n: number }).n;
+export const y = x;
+`);
+  // the test file re-reads b twice — exempt; its 'as' casts still flagged
+  const out = lintFiles([path.join(dir, 'index.ts'), path.join(dir, 'test/doc/d.test.ts')]);
+  assert.ok(!out.some((f) => f.rule === 'linear-state'), JSON.stringify(out));
+});
