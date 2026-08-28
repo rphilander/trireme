@@ -43,7 +43,7 @@ test("bootstrap module world: fresh writable module, dep interface only, payload
   const { H, GOAL } = fakeHome();
   const C = mkCampaign(H);
   const BRIEF = path.join(H, "brief.md");
-  write(BRIEF, "TYPE: cycle\nMODULE: parser\nKIND: verb\nDEPENDS: tokens\n\nBuild the parser verbs over tokens.\n");
+  write(BRIEF, "TYPE: cycle\nMODULE: parser\nKIND: verb\nDEPENDS: tokens,\n\nBuild the parser verbs over tokens.\n");
   const r = compose(H, ["mw-1", GOAL, BRIEF, C, "60"]);
   assert.equal(r.code, 0, r.out);
   const W = path.join(H, "control-runs/mw-1/workspace");
