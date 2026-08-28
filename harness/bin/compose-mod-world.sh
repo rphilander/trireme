@@ -44,38 +44,28 @@ if [ -d "$TRUNK/modules/$MODULE" ]; then
     < <(cd "$R/workspace" && find "modules/$MODULE" -name '*.ts' ! -name '*.d.ts' ! -path '*/test/*')
 fi
 
-# deps: interface surface only — .d.ts + compiled .js + doc tests
-for D in $DEPENDS; do
-  SRC=$TRUNK/modules/$D
-  [ -d "$SRC" ] || { echo "compose-mod-world: dependency '$D' is not banked"; exit 1; }
-  DST=$R/workspace/modules/$D
+# deps: sealed interface artifacts — .d.ts surface + doc tests + ONE
+# self-contained bundle mounted AS index.js (transitive #modules deps
+# inlined by esbuild at compose time; #platform stays external/shared;
+# safe because the lint bans module state). Nothing else exists.
+ESBUILD=$PLATFORM/node_modules/.bin/esbuild
+mount_dep(){ # <dep-name> <who>
+  local D=$1 WHO=$2
+  local SRC=$TRUNK/modules/$D
+  [ -d "$SRC" ] || { echo "$WHO: dependency '$D' is not banked"; exit 1; }
+  local DST=$R/workspace/modules/$D
   mkdir -p "$DST"
-  ( cd "$SRC" && find . -name '*.d.ts' -o \( -name '*.js' ! -path './test/*' \) ) | while IFS= read -r f; do
+  ( cd "$SRC" && find . -name '*.d.ts' ! -path './test/*' ) | while IFS= read -r f; do
     mkdir -p "$DST/$(dirname "$f")"
     cp "$SRC/$f" "$DST/$f"
   done
+  ( cd "$TRUNK" && "$ESBUILD" --bundle --format=esm --platform=node --log-level=warning \
+      "--external:#platform/*" "modules/$D/index.js" --outfile="$DST/index.js" )
   [ -d "$SRC/test/doc" ] && { mkdir -p "$DST/test"; cp -a "$SRC/test/doc" "$DST/test/doc"; }
-done
+  return 0
+}
+for D in $DEPENDS; do mount_dep "$D" compose-mod-world; done
 
-
-# runtime closure: a declared dep's compiled .js may import ITS own deps
-# (#modules/x/...) — mount those transitively as runtime support
-# (.js + .d.ts only; doc tests remain a declared-deps privilege)
-changed=1
-while [ "$changed" = 1 ]; do
-  changed=0
-  for need in $(grep -rhoE "#modules/[a-z0-9-]+/" "$R/workspace/modules" 2>/dev/null | sed 's|#modules/||; s|/$||' | sort -u); do
-    [ -d "$R/workspace/modules/$need" ] && continue
-    SRC=$TRUNK/modules/$need
-    [ -d "$SRC" ] || { echo "compose: runtime dep '$need' is not banked"; exit 1; }
-    mkdir -p "$R/workspace/modules/$need"
-    ( cd "$SRC" && find . -name '*.js' ! -path './test/*' ) | while IFS= read -r f; do
-      mkdir -p "$R/workspace/modules/$need/$(dirname "$f")"
-      cp "$SRC/$f" "$R/workspace/modules/$need/$f"
-    done
-    changed=1
-  done
-done
 
 {
 cat <<'MD'

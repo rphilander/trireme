@@ -21,6 +21,8 @@ const compose = (H, args) => {
 const mkCampaign = (H) => {
   const C = path.join(H, "campaign");
   const T = path.join(C, "trunk/entry-1/modules");
+  write(path.join(C, "trunk/entry-1/package.json"),
+    JSON.stringify({ type: "module", imports: { "#modules/*": "./modules/*", "#platform/*": "./platform/*" } }));
   write(path.join(T, "tokens/index.ts"), "export const t = 1;");
   write(path.join(T, "tokens/index.js"), "export const t = 1;");
   write(path.join(T, "tokens/index.d.ts"), "export declare const t: number;");

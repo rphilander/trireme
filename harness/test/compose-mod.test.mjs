@@ -21,6 +21,8 @@ const compose = (H, args) => {
 const mkCampaign = (H) => {
   const C = path.join(H, "campaign");
   const T = path.join(C, "trunk/entry-1/modules");
+  write(path.join(C, "trunk/entry-1/package.json"),
+    JSON.stringify({ type: "module", imports: { "#modules/*": "./modules/*", "#platform/*": "./platform/*" } }));
   // banked dep 'tokens': implementation + interface + doc and opaque tests
   write(path.join(T, "tokens/index.ts"), "export const t = 1;");
   write(path.join(T, "tokens/index.js"), "export const t = 1;");
@@ -52,6 +54,8 @@ test("bootstrap module world: fresh writable module, dep interface only, payload
   // dep: interface + compiled + doc tests — never implementation or opaque sources
   assert.ok(fs.existsSync(path.join(W, "modules/tokens/index.d.ts")));
   assert.ok(fs.existsSync(path.join(W, "modules/tokens/index.js")));
+  assert.match(fs.readFileSync(path.join(W, "modules/tokens/index.js"), "utf8"), /var t = 1|const t = 1|t = 1/,
+    "dep index.js is the compose-time bundle");
   assert.ok(!fs.existsSync(path.join(W, "modules/tokens/index.ts")), "dep implementation hidden");
   assert.ok(fs.existsSync(path.join(W, "modules/tokens/test/doc/basics.test.ts")), "doc tests are interface");
   assert.ok(!fs.existsSync(path.join(W, "modules/tokens/test/opaque")), "opaque tests not mounted in dep");
@@ -126,6 +130,8 @@ test("transitive runtime closure: dep's own imports mounted as runtime support",
   const { H, GOAL } = fakeHome();
   const C = path.join(H, "campaign");
   const T = path.join(C, "trunk/entry-1/modules");
+  write(path.join(C, "trunk/entry-1/package.json"),
+    JSON.stringify({ type: "module", imports: { "#modules/*": "./modules/*", "#platform/*": "./platform/*" } }));
   write(path.join(T, "b/index.js"), "export const b = 1;");
   write(path.join(T, "b/index.d.ts"), "export declare const b: number;");
   write(path.join(T, "b/test/doc/d.test.ts"), "// b doc");
@@ -137,9 +143,8 @@ test("transitive runtime closure: dep's own imports mounted as runtime support",
   const r = compose(H, ["mw-trans", GOAL, B, C, "60"]);
   assert.equal(r.code, 0, r.out);
   const W = path.join(H, "control-runs/mw-trans/workspace");
-  assert.ok(fs.existsSync(path.join(W, "modules/b/index.js")), "runtime closure mounted");
-  assert.ok(!fs.existsSync(path.join(W, "modules/b/index.d.ts")), "type-invisible: no d.ts for runtime plumbing");
-  assert.ok(!fs.existsSync(path.join(W, "modules/b/test")), "no doc tests for undeclared deps");
-  const dw = JSON.parse(fs.readFileSync(path.join(H, "control-runs/mw-trans/settings.json"), "utf8")).filesystem.denyWrite;
-  assert.ok(dw.some((p) => p.endsWith("/modules/b")), "transitive mount write-denied");
+  assert.ok(!fs.existsSync(path.join(W, "modules/b")), "transitive dep does not exist as a module");
+  const bundle = fs.readFileSync(path.join(W, "modules/a/index.js"), "utf8");
+  assert.match(bundle, /b = 1/, "transitive code inlined into the dep artifact");
+  assert.ok(!bundle.includes("#modules/"), "no module specifiers survive bundling");
 });
