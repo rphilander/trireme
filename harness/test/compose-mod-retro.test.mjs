@@ -59,7 +59,7 @@ test("qe-half retro world: facts, stamps, suite-judgment framing, next-brief spe
   assert.match(mandate, /requirements corpus/);
   assert.match(mandate, /failure-message clarity/i);
   assert.match(mandate, /BANK: <run-name>/);
-  assert.match(mandate, /TYPE: cycle/);
+  assert.ok(!/briefs\/<next>/.test(mandate), "qe half does not author the next brief");
   const dw = JSON.parse(fs.readFileSync(path.join(R, "settings.json"), "utf8")).filesystem.denyWrite;
   assert.ok(dw.some((p) => p.endsWith("/workspace/candidates")));
 });
@@ -92,4 +92,6 @@ test("code-half retro world: probe-beyond framing, trunk mounted", (t) => {
   const mandate = fs.readFileSync(path.join(W, "MANDATE.md"), "utf8");
   assert.match(mandate, /floor, not the ceiling/);
   assert.match(mandate, /probe BEYOND/);
+  assert.match(mandate, /TYPE: cycle/);
+  assert.match(mandate, /carry its full lessons/);
 });

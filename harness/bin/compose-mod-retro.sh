@@ -125,11 +125,17 @@ Deliver, in this order:
    the trunk under the mechanical floor (isolated recheck; VOID if it
    fails). REDO declares no candidate deserves banking and a fresh
    cohort should run under a revised framing (state what must change).
-3. briefs/<next>.md — the brief for the NEXT step per plan/plan.md
-   (for a new cycle: first lines `TYPE: cycle`, `MODULE: <name>`,
+MD
+if [ "$HALF" = "code" ]; then cat <<'MD'
+3. briefs/<next>.md — the brief for the NEXT cycle per plan/plan.md
+   (first lines `TYPE: cycle`, `MODULE: <name>`,
    `KIND: noun|verb|shell`, `DEPENDS: <banked modules>` — then a
-   self-contained body both cohorts can build from). If the plan
-   itself needs revising, say so in RETRO.md.
+   self-contained body both cohorts can build from). You close this
+   cycle, so you carry its full lessons into the next brief. If the
+   plan itself needs revising, say so in RETRO.md.
+MD
+fi
+cat <<'MD'
 
 Work only inside this directory. candidates/, modules/, plan/, and
 platform/ are read-only.
