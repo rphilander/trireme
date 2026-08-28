@@ -11,6 +11,14 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true
   },
-  "include": ["values/**/*.ts", "lint/**/*.ts"],
-  "exclude": ["values/vendor/**", "dist", "node_modules"]
+  "include": [
+    "values/**/*.ts",
+    "lint/**/*.ts",
+    "ledger/**/*.ts"
+  ],
+  "exclude": [
+    "values/vendor/**",
+    "dist",
+    "node_modules"
+  ]
 }
