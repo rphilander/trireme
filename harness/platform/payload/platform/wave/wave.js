@@ -111,7 +111,7 @@ const derive = (root) => {
     const migName = (p) => p.endsWith('.test.ts')
       ? p.replace(/\.test\.ts$/, `.${SLUG}.test.ts`) : p.replace(/\.ts$/, `.${SLUG}.ts`);
     for (const p of migSrc) {
-      let out = execFileSync('node', [RENAME, 'file', p, JSON.stringify(exportSwap)], { cwd: root, encoding: 'utf8' });
+      let out = execFileSync('node', [RENAME, 'file', p, JSON.stringify(exportSwap), `#modules/${MOD}/`], { cwd: root, encoding: 'utf8' });
       for (const q of migSrc) {
         if (q === p) continue;
         for (const pre of ['./', '../']) {
@@ -120,6 +120,8 @@ const derive = (root) => {
           out = out.split(from).join(to);
         }
       }
+      const orig = fs.readFileSync(p, 'utf8');
+      if (out === orig) continue; // inert copy — swapped names never bound here
       migrated[path.relative(root, migName(p))] = out;
     }
   }

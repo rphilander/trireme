@@ -79,6 +79,31 @@ test("stable-signature wave: mechanical closure, migrated estate, suite green, v
   assert.match(v2.out, /does not match|mismatch|tail/);
 });
 
+test("namespace-import estate migrates through ns.member accesses; inert copies dropped", (t) => {
+  if (!hasPayload) { t.skip("payload lacks wave"); return; }
+  const W = mkW();
+  // an estate file bound via namespace import, plus one that never
+  // binds swapped exports (must NOT produce a migrated copy)
+  write(path.join(W, "modules/calc/test/opaque/ns.test.ts"), `import test from 'node:test';
+import assert from 'node:assert/strict';
+import * as calc from '#modules/calc/index.js';
+test('ns total', () => { assert.equal(calc.total(1, 2), 3); });
+`);
+  write(path.join(W, "modules/calc/test/opaque/unrelated.test.ts"), `import test from 'node:test';
+import assert from 'node:assert/strict';
+test('math', () => { assert.equal(1 + 1, 2); });
+`);
+  fs.appendFileSync(path.join(W, "modules/calc/index.ts"),
+    "const isPos2 = (n: number): boolean => n > 0 && Number.isFinite(n);\n");
+  write(path.join(W, "modules/calc/supersessions/tighten.md"),
+    "Tighten.\nSUPERSEDE: isPos -> isPos2\n");
+  const a = wave(W, ["apply", "calc", "modules/calc/supersessions/tighten.md"]);
+  assert.equal(a.code, 0, a.out);
+  const mig = fs.readFileSync(path.join(W, "modules/calc/test/opaque/ns.tighten.test.ts"), "utf8");
+  assert.match(mig, /calc\.total2\(1, 2\)/, "ns member access migrated");
+  assert.ok(!fs.existsSync(path.join(W, "modules/calc/test/opaque/unrelated.tighten.test.ts")), "no inert copy");
+});
+
 test("signature-change wave: plan discovers the frontier and names the caller", (t) => {
   if (!hasPayload) { t.skip("payload lacks wave"); return; }
   const W = mkW();

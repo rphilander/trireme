@@ -102,11 +102,31 @@ if (mode === 'def') {
   collectEdits(mini, mini, swap, edits);
   process.stdout.write(splice(defText, edits) + '\n');
 } else if (mode === 'file') {
-  const [swapJson] = rest;
+  const [swapJson, moduleSpecFilter] = rest;
   const swap = JSON.parse(swapJson);
   const full = fs.readFileSync(file, 'utf8');
   const sf = ts.createSourceFile(file, full, ts.ScriptTarget.ES2022, true);
   const edits = [];
+  // namespace imports of the migrated module: `import * as X from spec`
+  // makes `X.old` a reference to the swapped export — the one place a
+  // property-access NAME must rename
+  const nsNames = new Set();
+  for (const st of sf.statements) {
+    if (!ts.isImportDeclaration(st) || !st.importClause || !st.importClause.namedBindings) continue;
+    const nb = st.importClause.namedBindings;
+    if (!ts.isNamespaceImport(nb)) continue;
+    const spec = ts.isStringLiteral(st.moduleSpecifier) ? st.moduleSpecifier.text : '';
+    if (!moduleSpecFilter || spec.includes(moduleSpecFilter)) nsNames.add(nb.name.text);
+  }
+  const nsVisit = (n) => {
+    if (ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.expression)
+        && nsNames.has(n.expression.text) && swap[n.name.text] !== undefined
+        && !shadowed(n.expression, n.expression.text, sf)) {
+      edits.push([n.name.getStart(sf), n.name.getEnd(), swap[n.name.text]]);
+    }
+    ts.forEachChild(n, nsVisit);
+  };
+  for (const st of sf.statements) nsVisit(st);
   for (const st of sf.statements) {
     if (!ts.isImportDeclaration(st) || !st.importClause || !st.importClause.namedBindings) continue;
     const nb = st.importClause.namedBindings;
