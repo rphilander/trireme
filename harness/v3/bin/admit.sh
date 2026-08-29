@@ -89,9 +89,9 @@ tests)
   [ -n "$MODULE" ] || refuse "tests delivery touches no module"
   for f in ${ADDED[@]+"${ADDED[@]}"}; do
     case "$f" in
-      modules/$MODULE/test/doc/*.test.ts|modules/$MODULE/test/opaque/*.test.ts) ;;
+      modules/$MODULE/test/*) ;; # the estate: tests, helpers, fixtures — all frozen on publication
       modules/$MODULE/index.ts) ;; # stub vehicle; excluded from the commit below
-      *) refuse "tests may only add test files (got: $f)" ;;
+      *) refuse "tests may only add estate files under modules/$MODULE/test/ (got: $f)" ;;
     esac
   done
   for f in ${MODIFIED[@]+"${MODIFIED[@]}"}; do

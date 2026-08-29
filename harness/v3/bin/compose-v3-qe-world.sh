@@ -94,6 +94,8 @@ cat <<MD
 
 - test/doc/*.test.ts — executable documentation, part of the
   interface; exemplary, small in number.
+- test/*.ts helpers and fixtures are welcome estate files (shared
+  builders, tables); immutable once published, like tests.
 - test/opaque/*.test.ts — edge cases, failure modes, invariants; the
   majority. Failure messages must state expected vs observed clearly
   enough to guide a fix without revealing the check.

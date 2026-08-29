@@ -208,4 +208,27 @@ test("sealed-world fidelity: a world carrying only its own module admits while t
   write(path.join(W3, "modules/interval/test/opaque/extra.test.ts"), OPAQUE.replace("degenerate", "degenerate2"));
   const r3 = sh(H, path.join(V3BIN, "admit.sh"), [C, "q-re", "tests"]);
   assert.equal(r3.code, 0, r3.out);
+  // estate helpers admit and freeze like tests
+  const W4 = path.join(H, "control-runs/q-help/workspace");
+  fs.mkdirSync(W4, { recursive: true });
+  execFileSync("bash", [path.join(PLATFORM, "bin/mk-workspace.sh"), W4], { stdio: "ignore" });
+  execFileSync("bash", [path.join(V2BIN, "scope-tsconfig.sh"), W4, "helpmod"], { stdio: "ignore" });
+  write(path.join(W4, "modules/helpmod/index.ts"),
+    "export declare const twice: (n: number) => number;\n");
+  write(path.join(W4, "modules/helpmod/test/helpers.ts"),
+    "export const pair = (n: number): [number, number] => [n, n];\n");
+  write(path.join(W4, "modules/helpmod/test/doc/d.test.ts"),
+    "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { twice } from '#modules/helpmod/index.js';\nimport { pair } from '../helpers.js';\ntest('twice', () => { assert.equal(twice(pair(2)[0]), 4); });\n");
+  write(path.join(W4, "modules/helpmod/test/opaque/o.test.ts"),
+    "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { twice } from '#modules/helpmod/index.js';\ntest('zero', () => { assert.equal(twice(0), 0, 'expected 0'); });\n");
+  const r4 = sh(H, path.join(V3BIN, "admit.sh"), [C, "q-help", "tests"]);
+  assert.equal(r4.code, 0, r4.out);
+  assert.ok(fs.existsSync(path.join(C, "history/modules/helpmod/test/helpers.ts")), "helper published");
+  const W5 = path.join(H, "control-runs/q-help2/workspace");
+  fs.cpSync(W4, W5, { recursive: true });
+  write(path.join(W5, "modules/helpmod/test/helpers.ts"),
+    "export const pair = (n: number): [number, number] => [n, n + 1];\n");
+  const r5 = sh(H, path.join(V3BIN, "admit.sh"), [C, "q-help2", "tests"]);
+  assert.notEqual(r5.code, 0);
+  assert.match(r5.out, /immutable/);
 });
