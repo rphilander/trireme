@@ -136,7 +136,10 @@ finishing:
     node --test "modules/$MODULE/test/**/*.test.js"
 
 Compile-clean and lint-clean are ADMISSION FLOORS — a delivery that
-fails them is refused outright.
+fails them is refused outright. If the adjudication record shows your
+half is complete and you genuinely find nothing to add, ending the
+session with NO delivery is legal — it is recorded as a null
+contribution and adjudication convenes next.
 
 Work only inside modules/$MODULE/ and challenges/. Everything else is
 read-only.
