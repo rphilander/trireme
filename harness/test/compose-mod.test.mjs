@@ -165,3 +165,26 @@ test("every mounted dependency is write-denied; .depends marker written", (t) =>
   }
   assert.equal(fs.readFileSync(path.join(R, "workspace/.depends"), "utf8").trim(), "tokens");
 });
+
+test("interface-closure: dep d.ts referencing an undeclared module refuses compose", (t) => {
+  if (!fs.existsSync(path.join(PLATFORM, "payload/platform"))) { t.skip("payload not built"); return; }
+  const { H, GOAL } = fakeHome();
+  const C = path.join(H, "campaign");
+  const T = path.join(C, "trunk/entry-1/modules");
+  write(path.join(C, "trunk/entry-1/package.json"),
+    JSON.stringify({ type: "module", imports: { "#modules/*": "./modules/*", "#platform/*": "./platform/*" } }));
+  write(path.join(T, "deep/index.js"), "export const d = 1;");
+  write(path.join(T, "deep/index.d.ts"), "export declare const d: number;");
+  write(path.join(T, "mid/index.js"), "export const m = 1;");
+  write(path.join(T, "mid/index.d.ts"), "import type { d } from '#modules/deep/index.js';\nexport declare const m: number;");
+  fs.symlinkSync("entry-1", path.join(C, "trunk/current"));
+  const B = path.join(H, "b-iface.md");
+  write(B, "TYPE: cycle\nMODULE: top\nKIND: verb\nDEPENDS: mid\n\nBody.\n");
+  const r = compose(H, ["mw-iface", GOAL, B, C, "60"]);
+  assert.notEqual(r.code, 0);
+  assert.match(r.out, /interface dependency|must include/);
+  const ok = path.join(H, "b-iface-ok.md");
+  write(ok, "TYPE: cycle\nMODULE: top\nKIND: verb\nDEPENDS: mid deep\n\nBody.\n");
+  const r2 = compose(H, ["mw-iface2", GOAL, ok, C, "60"]);
+  assert.equal(r2.code, 0, r2.out);
+});
