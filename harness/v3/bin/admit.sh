@@ -49,9 +49,11 @@ scan(){ # <relroot> — compare workspace vs tip under one root
     if [ ! -e "$TIP/$f" ]; then ADDED+=("$f");
     elif ! cmp -s "$W/$f" "$TIP/$f"; then MODIFIED+=("$f"); fi
   done < /tmp/admit.w.$$
-  # a root the composer never mounted is absent, not deleted; the
-  # deletion canary applies only to trees the world carries
-  if [ -d "$W/$root" ]; then
+  # deletion canary: modules/ only — worlds carry full module
+  # checkouts, so a vanished file is tamper. challenges/ and
+  # decisions/ are drop-boxes: a world holds only its own additions,
+  # and omission cannot publish anything anyway.
+  if [ "$root" = modules ] && [ -d "$W/$root" ]; then
     while IFS= read -r f; do [ -e "$W/$f" ] || DELETED+=("$f"); done < /tmp/admit.t.$$
   fi
   rm -f /tmp/admit.w.$$ /tmp/admit.t.$$
