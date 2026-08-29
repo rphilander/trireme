@@ -55,18 +55,20 @@ fi
 for D in $DEPENDS; do bash "$BINDIR/mount-dep.sh" "$TRUNK" "$D" "$R/workspace" compose-qe-mod-world; done
 
 # every module referenced by a declared dep's interface must itself be declared
+IFACE_BAD=0
 for D in $DEPENDS; do
   if [ -f "$R/workspace/modules/$D/.iface-refs" ]; then
     while IFS= read -r X; do
       [ -z "$X" ] && continue
       case " $DEPENDS " in *" $X "*) ;; *)
         echo "compose: dep '$D' interface references '#modules/$X' — '$X' is an interface dependency and DEPENDS must include it"
-        exit 1 ;;
+        IFACE_BAD=1 ;;
       esac
     done < "$R/workspace/modules/$D/.iface-refs"
     rm -f "$R/workspace/modules/$D/.iface-refs"
   fi
 done
+[ "$IFACE_BAD" = 0 ] || exit 1
 
 
 
