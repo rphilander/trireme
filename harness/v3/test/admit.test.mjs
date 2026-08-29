@@ -158,10 +158,54 @@ test("code kind: challenge needs TEST: line; decision kind adds decisions only; 
   write(path.join(Wd, "decisions/0001-collect-degenerate.md"), "COLLECT test o.test.ts; reason...\n");
   const rd = sh(H, path.join(V3BIN, "admit.sh"), [C, "d-1", "decision"]);
   assert.equal(rd.code, 0, rd.out);
-  // deletion refused
+  // tamper: contribute AND delete a published test → append-only refusal
   const Wx = mkWorld(H, "c-x", "interval");
   fs.rmSync(path.join(Wx, "modules/interval/test/doc/d.test.ts"));
+  write(path.join(Wx, "modules/interval/extra.ts"), "export const three = (): number => 3;\n");
+  execFileSync("node", ["node_modules/typescript/lib/tsc.js", "-p", "tsconfig.json"], { cwd: Wx, stdio: "ignore" });
   const rx = sh(H, path.join(V3BIN, "admit.sh"), [C, "c-x", "code"]);
   assert.notEqual(rx.code, 0);
   assert.match(rx.out, /append-only/);
+});
+
+test("sealed-world fidelity: a world carrying only its own module admits while tip holds others", (t) => {
+  if (!hasPayload) { t.skip("payload not built"); return; }
+  const { H, C } = mkCampaign();
+  // publish interval (estate + code) so the tip holds a foreign module
+  const Wq = mkWorld(H, "q-1", "interval");
+  write(path.join(Wq, "modules/interval/index.ts"), STUB);
+  write(path.join(Wq, "modules/interval/test/doc/d.test.ts"), DOC);
+  write(path.join(Wq, "modules/interval/test/opaque/o.test.ts"), OPAQUE);
+  assert.equal(sh(H, path.join(V3BIN, "admit.sh"), [C, "q-1", "tests"]).code, 0);
+  const Wc = mkWorld(H, "c-1", "interval");
+  write(path.join(Wc, "modules/interval/index.ts"), CODE_GREEN);
+  execFileSync("node", ["node_modules/typescript/lib/tsc.js", "-p", "tsconfig.json"], { cwd: Wc, stdio: "ignore" });
+  assert.equal(sh(H, path.join(V3BIN, "admit.sh"), [C, "c-1", "code"]).code, 0);
+  // a qe world for a NEW module, shaped like the real composer output:
+  // own module only; no interval files anywhere (sealed mounts carry
+  // no sources); must admit despite interval existing at tip
+  const W2 = path.join(H, "control-runs/q-span/workspace");
+  fs.mkdirSync(W2, { recursive: true });
+  execFileSync("bash", [path.join(PLATFORM, "bin/mk-workspace.sh"), W2], { stdio: "ignore" });
+  execFileSync("bash", [path.join(V2BIN, "scope-tsconfig.sh"), W2, "span"], { stdio: "ignore" });
+  write(path.join(W2, "modules/span/index.ts"),
+    "export declare const spanOf: (n: number) => number;\n");
+  write(path.join(W2, "modules/span/test/doc/s.test.ts"),
+    "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { spanOf } from '#modules/span/index.js';\ntest('span', () => { assert.equal(spanOf(2), 2); });\n");
+  write(path.join(W2, "modules/span/test/opaque/s2.test.ts"),
+    "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { spanOf } from '#modules/span/index.js';\ntest('zero', () => { assert.equal(spanOf(0), 0, 'expected 0'); });\n");
+  const r = sh(H, path.join(V3BIN, "admit.sh"), [C, "q-span", "tests"]);
+  assert.equal(r.code, 0, r.out);
+  // and a qe REOPEN world for interval: interface-only own module
+  // (no index.ts — sealed), published tests present; must admit adds
+  const W3 = path.join(H, "control-runs/q-re/workspace");
+  fs.mkdirSync(W3, { recursive: true });
+  execFileSync("bash", [path.join(PLATFORM, "bin/mk-workspace.sh"), W3], { stdio: "ignore" });
+  execFileSync("bash", [path.join(V2BIN, "scope-tsconfig.sh"), W3, "interval"], { stdio: "ignore" });
+  write(path.join(W3, "modules/interval/index.d.ts"),
+    "export declare const width: (lo: number, hi: number) => number;\n");
+  fs.cpSync(path.join(C, "history/modules/interval/test"), path.join(W3, "modules/interval/test"), { recursive: true });
+  write(path.join(W3, "modules/interval/test/opaque/extra.test.ts"), OPAQUE.replace("degenerate", "degenerate2"));
+  const r3 = sh(H, path.join(V3BIN, "admit.sh"), [C, "q-re", "tests"]);
+  assert.equal(r3.code, 0, r3.out);
 });

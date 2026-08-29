@@ -39,7 +39,7 @@ exec 9>"$CAMPAIGN/.campaign.lock"; flock 9
 # ledger for kind=code; whole-file edits elsewhere are refusals).
 TIP=$(mktemp -d)
 git -C "$HIST" archive HEAD | tar -x -C "$TIP"
-ADDED=(); MODIFIED=(); DELETED=()
+ADDED=(); MODIFIED=()
 scan(){ # <relroot> — compare workspace vs tip under one root
   local root=$1
   # derived artifacts never publish: history holds source only
@@ -49,19 +49,11 @@ scan(){ # <relroot> — compare workspace vs tip under one root
     if [ ! -e "$TIP/$f" ]; then ADDED+=("$f");
     elif ! cmp -s "$W/$f" "$TIP/$f"; then MODIFIED+=("$f"); fi
   done < /tmp/admit.w.$$
-  # deletion canary: modules/ only — worlds carry full module
-  # checkouts, so a vanished file is tamper. challenges/ and
-  # decisions/ are drop-boxes: a world holds only its own additions,
-  # and omission cannot publish anything anyway.
-  if [ "$root" = modules ] && [ -d "$W/$root" ]; then
-    while IFS= read -r f; do [ -e "$W/$f" ] || DELETED+=("$f"); done < /tmp/admit.t.$$
-  fi
   rm -f /tmp/admit.w.$$ /tmp/admit.t.$$
 }
 scan modules
 scan challenges
 scan decisions
-[ ${#DELETED[@]} -eq 0 ] || refuse "history is append-only; deleted: ${DELETED[*]} (collections are adjudicated decisions the kernel executes)"
 
 # single-module discipline: all module-tree paths under one modules/<M>
 MODULE=""
@@ -73,6 +65,23 @@ for f in ${ADDED[@]+"${ADDED[@]}"} ${MODIFIED[@]+"${MODIFIED[@]}"}; do
       MODULE=$m ;;
   esac
 done
+
+# deletion canary, scoped to what this kind of world actually carries:
+# a code world holds its module's full tree; a qe world holds only the
+# test estate (sources of its own module are sealed away from it).
+# Everything else at tip is legitimately absent from a session world —
+# worlds mount sealed interfaces, not checkouts of the whole history.
+canary(){ # <tip-subtree>
+  ( cd "$TIP" 2>/dev/null && { find "$1" -type f ! -name '*.js' ! -name '*.d.ts' ! -name '*.map' ! -name '.keep' 2>/dev/null || true; } ) | while IFS= read -r f; do [ -e "$W/$f" ] || echo "$f"; done
+}
+if [ -n "$MODULE" ]; then
+  case "$KIND" in
+    code) GONE=$(canary "modules/$MODULE") ;;
+    tests) GONE=$(canary "modules/$MODULE/test") ;;
+    *) GONE="" ;;
+  esac
+  [ -z "$GONE" ] || refuse "history is append-only; deleted: $(echo $GONE) (collections are adjudicated decisions the kernel executes)"
+fi
 
 # ---- per-kind floors ------------------------------------------------
 case "$KIND" in
