@@ -9,6 +9,7 @@ command -v node >/dev/null 2>&1 || export PATH="$HOME/.local/lib/node/bin:$PATH"
 CAMPAIGN=$1
 HIST=$CAMPAIGN/history
 LEDGER=$CAMPAIGN/verdicts.jsonl
+VLOGS=$CAMPAIGN/verdict-logs
 BINDIR=$(cd "$(dirname "$0")" && pwd)
 PLATFORM=$BINDIR/../../platform
 [ -d "$HIST/.git" ] || { echo "verdicts: no history at $HIST"; exit 1; }
@@ -28,9 +29,10 @@ mkdir -p "$RW/modules"
 ( cd "$RW" && node node_modules/typescript/lib/tsc.js -p tsconfig.json ) > /dev/null 2>&1 || true
 
 python3 "$BINDIR/pairs.py" "$RW" > "$RW/.pairs.json"
-python3 - "$RW" "$LEDGER" "$RUNID" <<'PY'
+mkdir -p "$VLOGS"
+python3 - "$RW" "$LEDGER" "$RUNID" "$VLOGS" <<'PY'
 import json, os, subprocess, sys
-RW, LEDGER, RUNID = sys.argv[1], sys.argv[2], sys.argv[3]
+RW, LEDGER, RUNID, VLOGS = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 seen = set()
 for line in open(LEDGER):
     line = line.strip()
@@ -57,6 +59,12 @@ for r in rows:
             if s.startswith("# pass") or s.startswith("ℹ pass"): p = int(s.split()[-1])
             if s.startswith("# fail") or s.startswith("ℹ fail"): f = int(s.split()[-1])
         verdict = "pass" if rr.returncode == 0 and f == 0 and p > 0 else "fail"
+        if verdict != "pass":
+            # failure text is what the adjudicator and coders read;
+            # opaque sources stay hidden, their messages do not
+            lp = os.path.join(VLOGS, r["testHash"][:16] + "." + r["closure"][:16] + ".txt")
+            with open(lp, "w") as lf:
+                lf.write(f"TEST: {r['test']}\nRUN: {RUNID}\n\n" + rr.stdout[-8000:] + rr.stderr[-2000:])
     entries.append({"test": r["test"], "testHash": r["testHash"], "module": r["module"],
                     "closure": r["closure"], "verdict": verdict, "pass": p, "fail": f, "runId": RUNID})
     seen.add((r["testHash"], r["closure"]))
