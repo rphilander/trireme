@@ -42,9 +42,11 @@ if [ -d "$TRUNK/modules/$MODULE" ]; then
     mkdir -p "$R/workspace/modules/$MODULE/$(dirname "$f")"
     cp "$SRC/$f" "$R/workspace/modules/$MODULE/$f"
   done
-  ( cd "$TRUNK" && "$PLATFORM/node_modules/.bin/esbuild" --bundle --format=esm --platform=node \
-      --log-level=warning "--external:#platform/*" "modules/$MODULE/index.js" \
-      --outfile="$R/workspace/modules/$MODULE/index.js" )
+  if [ -f "$TRUNK/modules/$MODULE/index.js" ]; then
+    ( cd "$TRUNK" && "$PLATFORM/node_modules/.bin/esbuild" --bundle --format=esm --platform=node \
+        --log-level=warning "--external:#platform/*" "modules/$MODULE/index.js" \
+        --outfile="$R/workspace/modules/$MODULE/index.js" )
+  fi
   [ -d "$SRC/test" ] && cp -a "$SRC/test/." "$R/workspace/modules/$MODULE/test/"
   while IFS= read -r f; do FROZEN+=("$f"); done \
     < <(cd "$R/workspace" && find "modules/$MODULE/test" -name '*.ts' ! -name '*.d.ts' 2>/dev/null)
