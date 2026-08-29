@@ -60,7 +60,10 @@ self-contained body — exact exported names, signatures over platform
 Value types, and behaviors, precise enough that a QE cohort and a
 coding cohort derive compatible artifacts independently. Ground each
 brief in what is actually banked (read the real interfaces), not what
-the plan predicted. Never re-specify platform layouts or invocations
+the plan predicted.
+DEPENDS must be INTERFACE-CLOSED: if any declared dependency's
+.d.ts references #modules/X, then X must be declared too — compose
+mechanically refuses an unclosed DEPENDS line. Never re-specify platform layouts or invocations
 (platform/ contracts win). Because these cycles run concurrently, no
 brief may depend on another brief's module.
 

@@ -135,9 +135,11 @@ cat <<'MD'
    the brief for the NEXT cycle per plan/plan.md
    (first lines `TYPE: cycle`, `MODULE: <name>`,
    `KIND: noun|verb|shell`, `DEPENDS: <banked modules>` — then a
-   self-contained body both cohorts can build from). You close this
-   cycle, so you carry its full lessons into the next brief. If the
-   plan itself needs revising, say so in RETRO.md.
+   self-contained body both cohorts can build from). DEPENDS must be
+   INTERFACE-CLOSED: if a declared dependency's .d.ts references
+   #modules/X, X must be declared too (compose refuses otherwise).
+   You close this cycle, so you carry its full lessons into the next
+   brief. If the plan itself needs revising, say so in RETRO.md.
 MD
 fi
 cat <<'MD'

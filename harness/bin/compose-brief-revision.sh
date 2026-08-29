@@ -43,6 +43,9 @@ refusal of the verdict's winner — the revised brief must make that
 class of failure impossible, typically by describing banked interfaces
 EXACTLY as their .d.ts declares them and declaring DEPENDS
 completely).
+DEPENDS must be INTERFACE-CLOSED: if any declared dependency's
+.d.ts references #modules/X, then X must be declared too — compose
+mechanically refuses an unclosed DEPENDS line.
 Your job: deliver **briefs/cycle-$N.md** — the REVISED brief a fresh
 cohort pair (QE and code, independently) will build from.
 
