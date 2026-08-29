@@ -49,9 +49,12 @@ if [ -d "$CAMPAIGN/trunk/current" ]; then
   rm -rf "$E/platform" "$E/node_modules"
   cp -al "$BINDIR/../platform/payload/platform" "$E/platform"
   cp -al "$BINDIR/../platform/payload/node_modules" "$E/node_modules"
-  # keep a real ledger baseline of the previous entry for the accretion check
-  BASE=$(mktemp)
-  ( cd "$CAMPAIGN/trunk/current" && node platform/ledger/ledger.js modules/* ) > "$BASE" 2>/dev/null || BASE=""
+  # module-scoped ledger baseline of the previous entry for the accretion check
+  BASE=""
+  if [ -d "$CAMPAIGN/trunk/current/modules/$MODULE" ]; then
+    BASE=$(mktemp)
+    ( cd "$CAMPAIGN/trunk/current" && node platform/ledger/ledger.js "modules/$MODULE" ) > "$BASE" 2>/dev/null || BASE=""
+  fi
 else
   mkdir -p "$E"
   # first entry: a workspace skeleton from the platform payload
@@ -71,10 +74,24 @@ else
   echo "bank-mod: unknown TYPE: $TYPE"; exit 1
 fi
 
+# WORLD-EQUIVALENT recheck: floors must be checkable in the world the
+# work was done in. The winner is validated in a fresh sealed-interface
+# workspace (own sources + deps as bundles+d.ts from the previous
+# trunk), never against the merged source tree — declaration-vs-source
+# inference can differ (the eval-stmt seam), and no cohort can see or
+# fix the merged context.
+RW=$(mktemp -d)
+bash "$BINDIR/../platform/bin/mk-workspace.sh" "$RW" > /dev/null
+cp -a "$WW/modules/$MODULE" "$RW/modules/$MODULE"
+DEPS=$(cat "$RD/DEPENDS" 2>/dev/null || true)
+if [ -n "$DEPS" ] && [ -d "$CAMPAIGN/trunk/current" ]; then
+  for D in $DEPS; do bash "$BINDIR/mount-dep.sh" "$CAMPAIGN/trunk/current" "$D" "$RW" bank-recheck; done
+fi
 set +e
-V=$(bash "$BINDIR/validate-mod.sh" "$E" "$MODULE" "$TYPE" ${BASE:+"$BASE"} 2>&1)
+V=$(bash "$BINDIR/validate-mod.sh" "$RW" "$MODULE" "$TYPE" ${BASE:+"$BASE"} 2>&1)
 VCODE=$?
 set -e
+rm -rf "$RW"
 if [ "$VCODE" -ne 0 ]; then
   VD="$CAMPAIGN/void/$RETRO.$(date -u +%Y%m%dT%H%M%S)"
   while [ -e "$VD" ]; do VD="$VD.x"; done

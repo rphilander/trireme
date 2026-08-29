@@ -19,12 +19,15 @@ PLATFORM=$BINDIR/../platform
 case "$HALF" in qe|code) ;; *) echo "compose-mod-retro: half must be qe|code"; exit 1;; esac
 
 hdr(){ grep -m1 -iE "^[#* ]*$1:" "$BRIEF" | sed -E "s/^[#* ]*$1:[[:space:]]*//i; s/[*\`]//g; s/[[:space:]]+$//" || true; }
-MODULE=$(hdr MODULE); KIND=$(hdr KIND)
+MODULE=$(hdr MODULE); KIND=$(hdr KIND); DEPENDS=$(hdr DEPENDS)
+DEPENDS=$(echo "$DEPENDS" | sed -E 's/\([^)]*\)//g' | tr ',' ' ' | xargs || true)
+case "$DEPENDS" in none|None|NONE|-) DEPENDS="" ;; esac
 [ -n "$MODULE" ] || { echo "compose-mod-retro: brief has no MODULE: header"; exit 1; }
 
 rm -rf $R && mkdir -p $R/home/.pi/agent/extensions
 echo "$HALF" > $R/TYPE
 echo "$MODULE" > $R/MODULE
+echo "$DEPENDS" > $R/DEPENDS
 cp ~/src/trireme/experiments/kernel/extensions/trireme-shell.ts $R/home/.pi/agent/extensions/
 bash "$PLATFORM/bin/mk-workspace.sh" "$R/workspace" > /dev/null
 cp "$BINDIR/../PHASE-CONTRACT.md" "$R/workspace/platform/"
@@ -37,9 +40,9 @@ fi
 
 # ledger baseline for code-half validation facts
 BASE=""
-if [ "$HALF" = "code" ] && [ -d "$CAMPAIGN/trunk/current/modules" ]; then
+if [ "$HALF" = "code" ] && [ -d "$CAMPAIGN/trunk/current/modules/$MODULE" ]; then
   BASE=$R/.baseline-ledger.json
-  ( cd "$CAMPAIGN/trunk/current" && node platform/ledger/ledger.js modules/* ) > "$BASE" 2>/dev/null || BASE=""
+  ( cd "$CAMPAIGN/trunk/current" && node platform/ledger/ledger.js "modules/$MODULE" ) > "$BASE" 2>/dev/null || BASE=""
 fi
 
 CAND_LIST=""

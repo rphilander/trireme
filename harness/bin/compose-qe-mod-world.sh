@@ -49,23 +49,7 @@ if [ -d "$TRUNK/modules/$MODULE" ]; then
     < <(cd "$R/workspace" && find "modules/$MODULE/test" -name '*.ts' ! -name '*.d.ts' 2>/dev/null)
 fi
 
-ESBUILD=$PLATFORM/node_modules/.bin/esbuild
-mount_dep(){ # <dep-name>
-  local D=$1
-  local SRC=$TRUNK/modules/$D
-  [ -d "$SRC" ] || { echo "compose-qe-mod-world: dependency '$D' is not banked"; exit 1; }
-  local DST=$R/workspace/modules/$D
-  mkdir -p "$DST"
-  ( cd "$SRC" && find . -name '*.d.ts' ! -path './test/*' ) | while IFS= read -r f; do
-    mkdir -p "$DST/$(dirname "$f")"
-    cp "$SRC/$f" "$DST/$f"
-  done
-  ( cd "$TRUNK" && "$ESBUILD" --bundle --format=esm --platform=node --log-level=warning \
-      "--external:#platform/*" "modules/$D/index.js" --outfile="$DST/index.js" )
-  [ -d "$SRC/test/doc" ] && { mkdir -p "$DST/test"; cp -a "$SRC/test/doc" "$DST/test/doc"; }
-  return 0
-}
-for D in $DEPENDS; do mount_dep "$D"; done
+for D in $DEPENDS; do bash "$BINDIR/mount-dep.sh" "$TRUNK" "$D" "$R/workspace" compose-qe-mod-world; done
 
 
 {
