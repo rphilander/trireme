@@ -38,6 +38,17 @@ if [ -d "$STAGE/modules/$MODULE" ]; then
     < <(cd "$R/workspace" && find "modules/$MODULE/test" -name '*.ts' 2>/dev/null)
 fi
 
+# the conversation record: adjudication decisions and published
+# challenges, read-only (published challenge files are frozen even
+# though the challenges/ drop-box stays writable for NEW disputes)
+for d in decisions challenges; do
+  if ls "$STAGE/$d"/*.md >/dev/null 2>&1; then
+    mkdir -p "$R/workspace/$d"; cp "$STAGE/$d"/*.md "$R/workspace/$d/"
+  fi
+done
+while IFS= read -r f; do FROZEN+=("$f"); done \
+  < <(cd "$R/workspace" && find challenges -name '*.md' 2>/dev/null)
+
 for D in $DEPENDS; do bash "$V2BIN/mount-dep.sh" "$STAGE" "$D" "$R/workspace" compose-v3-code-world; done
 IFACE_BAD=0
 for D in $DEPENDS; do
@@ -82,6 +93,12 @@ cat <<MD
 
 - modules/$MODULE/*.ts — new definitions (or appended defs in
   existing files; the ledger verifies adds-only at def level).
+- decisions/ (read-only) is the ADJUDICATION RECORD of this
+  conversation. If its most recent decision directs work on your
+  module (\`NEXT: code $MODULE\`, usually naming a defect and the
+  expected successor definition), THAT DIRECTIVE IS YOUR ASSIGNMENT —
+  carry it out precisely: add the successor, migrate the module's own
+  callers, leave the orphan for adjudicated collection.
 - challenges/<slug>.md — OPTIONAL: when you judge a test WRONG
   (contradicts the brief, internally inconsistent, unsatisfiable),
   leave it red and file a challenge. First line exactly

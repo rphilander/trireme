@@ -66,6 +66,12 @@ for D in $DEPENDS; do
 done
 [ "$IFACE_BAD" = 0 ] || exit 1
 
+for d in decisions challenges; do
+  if ls "$STAGE/$d"/*.md >/dev/null 2>&1; then
+    mkdir -p "$R/workspace/$d"; cp "$STAGE/$d"/*.md "$R/workspace/$d/"
+  fi
+done
+
 {
 cat <<'MD'
 # QE contribution — one module's claims
@@ -102,6 +108,11 @@ cat <<MD
 
 node:test + node:assert/strict; import '#modules/$MODULE/index.js';
 platform/CODE-CONTRACT.md applies to test code.
+
+decisions/ (read-only), when present, is the adjudication record: a
+decision directing migration claims or new coverage for $MODULE
+directs your additions; challenges/ holds published disputes against
+tests (immutable — adjudication resolves them, never you).
 MD
 if [ "$REOPEN" = 1 ]; then cat <<MD
 

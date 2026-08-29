@@ -106,6 +106,11 @@ code)
     for f in ${ADDED[@]+"${ADDED[@]}"}; do case "$f" in challenges/*.md) CH=1 ;; *) refuse "code may add module source and challenges only (got: $f)" ;; esac; done
     [ "$CH" = 1 ] || refuse "code delivery touches no module and files no challenge"
   fi
+  for f in ${MODIFIED[@]+"${MODIFIED[@]}"}; do
+    case "$f" in
+      challenges/*|decisions/*) refuse "published $f is immutable" ;;
+    esac
+  done
   for f in ${ADDED[@]+"${ADDED[@]}"} ${MODIFIED[@]+"${MODIFIED[@]}"}; do
     case "$f" in
       modules/$MODULE/test/*) refuse "coders never touch tests (got: $f); dispute via challenges/" ;;

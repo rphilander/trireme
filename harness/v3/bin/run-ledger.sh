@@ -43,6 +43,12 @@ tot(){ echo "$1" | python3 -c "import json,sys;print(json.load(sys.stdin)['total
 
 say "=== ledger conversation: brief=$SLUG module=$MODULE max=$MAX dry=$DRY"
 N=0
+for d in $HOME/control-runs/v3q-$SLUG-* $HOME/control-runs/v3c-$SLUG-* $HOME/control-runs/v3adj-$SLUG-*; do
+  [ -d "$d" ] || continue
+  i=${d##*-}
+  case "$i" in *[!0-9]*) ;; *) [ "$i" -gt "$N" ] && N=$i ;; esac
+done
+[ "$N" -gt 0 ] && say "resuming session numbering at $((N+1)) (existing runs preserved)"
 next_session(){ N=$((N+1)); [ "$N" -le "$MAX" ] || { say "ESCALATE: session cap $MAX reached"; exit 1; }; }
 
 # 1. the estate opens the conversation if the module has none
