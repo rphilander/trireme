@@ -29,7 +29,9 @@ fi
 # undeclared imports are an escalation, never something a world can mask
 if [ -f "$W/.depends" ]; then
   DECLARED="$(cat "$W/.depends") $MODULE"
-  BAD=$(grep -rhoE '#modules/[a-z0-9-]+' "$W/modules/$MODULE" --include='*.ts' 2>/dev/null | sed 's|#modules/||' | sort -u | \
+  # match only real import/export specifiers, not comments or strings
+  BAD=$(grep -rhoE "(import|export)[^;]*from[[:space:]]*['\"]#modules/[a-z0-9-]+|import\(['\"]#modules/[a-z0-9-]+" \
+        "$W/modules/$MODULE" --include='*.ts' 2>/dev/null | grep -oE '#modules/[a-z0-9-]+' | sed 's|#modules/||' | sort -u | \
         while IFS= read -r m; do case " $DECLARED " in *" $m "*) ;; *) echo "$m";; esac; done)
   [ -z "$BAD" ] || fail "undeclared dependency import(s): $(echo $BAD) — DEPENDS must be complete; file a challenge if the brief is wrong"
 fi

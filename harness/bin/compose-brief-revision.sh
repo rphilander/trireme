@@ -10,7 +10,7 @@
 # revised briefs/cycle-<N>.md.
 set -euo pipefail
 command -v node >/dev/null 2>&1 || export PATH="$HOME/.local/lib/node/bin:$PATH"
-NAME=$1; GOALF=$2; CAMPAIGN=$3; N=$4; RETRO=$5; CAPMIN=${6:-30}
+NAME=$1; GOALF=$2; CAMPAIGN=$3; N=$4; RETRO=$5; CAPMIN=${6:-30}; EXTRA=${7:-}
 R=$HOME/control-runs/$NAME
 BINDIR=$(cd "$(dirname "$0")" && pwd)
 PLATFORM=$BINDIR/../platform
@@ -23,6 +23,7 @@ cp -a "$CAMPAIGN/plan" $R/workspace/plan
 cp "$CAMPAIGN/plan/briefs/cycle-$N.md" $R/workspace/redo/original-brief.md
 cp "$HOME/control-runs/$RETRO/workspace/RETRO.md" $R/workspace/redo/RETRO.md
 cp "$HOME/control-runs/$RETRO/workspace/DECISION.md" $R/workspace/redo/DECISION.md
+[ -n "$EXTRA" ] && cp "$EXTRA" $R/workspace/redo/VALIDATION.txt
 
 {
 cat <<'MD'
@@ -36,7 +37,12 @@ cat <<MD
 
 You are this campaign's planning judgment. A QE cohort ran cycle $N
 from redo/original-brief.md, and the retrospective declared REDO —
-its full assessment is redo/RETRO.md and its verdict redo/DECISION.md.
+its full assessment is redo/RETRO.md and its verdict redo/DECISION.md
+(when redo/VALIDATION.txt exists, it is the PLATFORM's mechanical
+refusal of the verdict's winner — the revised brief must make that
+class of failure impossible, typically by describing banked interfaces
+EXACTLY as their .d.ts declares them and declaring DEPENDS
+completely).
 Your job: deliver **briefs/cycle-$N.md** — the REVISED brief a fresh
 cohort pair (QE and code, independently) will build from.
 
