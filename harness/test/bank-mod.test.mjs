@@ -150,3 +150,52 @@ test("concurrent banks serialize on the campaign lock (distinct entries)", (t) =
     assert.equal((hist.match(/BANK qe/g) || []).length, 2);
   });
 });
+
+test("qe type floor: stub-inconsistent estate REJECTed, consistent passes, stubless legacy skips", (t) => {
+  if (!hasPayload) { t.skip("payload not built"); return; }
+  const { H } = fakeHome();
+  const W = path.join(H, "control-runs/q-floor/workspace");
+  fs.mkdirSync(W, { recursive: true });
+  execFileSync("bash", [path.join(PLATFORM, "bin/mk-workspace.sh"), W], { stdio: "ignore" });
+  write(path.join(W, "modules/interval/index.ts"),
+    "import type { Vec } from '#platform/values/core.js';\nexport declare const total: (xs: Vec<string>) => number;\n");
+  write(path.join(W, "modules/interval/test/doc/d.test.ts"),
+    "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { total } from '#modules/interval/index.js';\nimport * as vec from '#platform/values/vec.js';\ntest('total', () => { assert.equal(total(vec.of(1)), 1); });\n");
+  write(path.join(W, "modules/interval/test/opaque/o.test.ts"),
+    "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { total } from '#modules/interval/index.js';\nimport * as vec from 'node:util';\ntest('t', () => { assert.ok(total, 'expected total exported'); });\n");
+  const r1 = sh(H, "validate-mod.sh", [W, "interval", "qe"]);
+  assert.notEqual(r1.code, 0);
+  assert.match(r1.out, /estate not compile-clean/);
+  // fix the stub to match the estate's usage → passes, reports typechecked
+  write(path.join(W, "modules/interval/index.ts"),
+    "import type { Vec } from '#platform/values/core.js';\nexport declare const total: (xs: Vec<number>) => number;\n");
+  const r2 = sh(H, "validate-mod.sh", [W, "interval", "qe"]);
+  assert.equal(r2.code, 0, r2.out);
+  assert.match(r2.out, /typechecked/);
+  // stubless legacy estate: floor skipped, no typechecked claim
+  fs.rmSync(path.join(W, "modules/interval/index.ts"));
+  const r3 = sh(H, "validate-mod.sh", [W, "interval", "qe"]);
+  assert.equal(r3.code, 0, r3.out);
+  assert.doesNotMatch(r3.out, /typechecked/);
+});
+
+test("qe bank: stub travels into the recheck, never into the entry", (t) => {
+  if (!hasPayload) { t.skip("payload not built"); return; }
+  const { H } = fakeHome();
+  const C = path.join(H, "campaign");
+  const W = path.join(H, "control-runs/q-stub/workspace");
+  fs.mkdirSync(W, { recursive: true });
+  execFileSync("bash", [path.join(PLATFORM, "bin/mk-workspace.sh"), W], { stdio: "ignore" });
+  write(path.join(W, "modules/interval/index.ts"),
+    "export declare const width: (lo: number, hi: number) => number;\n");
+  write(path.join(W, "modules/interval/test/doc/d.test.ts"),
+    "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { width } from '#modules/interval/index.js';\ntest('width', () => { assert.equal(width(1, 4), 3); });\n");
+  write(path.join(W, "modules/interval/test/opaque/o.test.ts"),
+    "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { width } from '#modules/interval/index.js';\ntest('degenerate', () => { assert.equal(width(2, 2), 0, 'expected 0'); });\n");
+  mkRetro(H, "retro-qs", { type: "qe", module: "interval", winner: "q-stub" });
+  const r = sh(H, "bank-mod.sh", [C, "retro-qs"]);
+  assert.equal(r.code, 0, r.out);
+  const E = path.join(C, "trunk/entry-1/modules/interval");
+  assert.ok(fs.existsSync(path.join(E, "test/doc/d.test.ts")), "estate banked");
+  assert.ok(!fs.existsSync(path.join(E, "index.ts")), "stub never banks");
+});

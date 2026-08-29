@@ -57,9 +57,12 @@ test("bootstrap QE world: test-only writable, born-red framing, doc/opaque deliv
   assert.match(mandate, /born red/);
   assert.match(mandate, /never see their code/);
   const settings = JSON.parse(fs.readFileSync(path.join(R, "settings.json"), "utf8"));
-  assert.ok(settings.filesystem.allowWrite.some((p) => p.endsWith("/modules/parser/test")),
-    "writable surface is the test dir only");
+  assert.ok(settings.filesystem.allowWrite.some((p) => p.endsWith("/modules/parser")),
+    "writable surface is the module dir (tests + typed stub)");
   assert.ok(!settings.filesystem.allowWrite.some((p) => p.endsWith("/workspace")));
+  assert.match(mandate, /TYPED STUB/);
+  assert.match(mandate, /modules\/parser\/index\.ts/);
+  assert.match(mandate, /--noEmit/);
 });
 
 test("reopen QE world: interface mounted, banked test sources frozen, accretion framing", (t) => {
@@ -77,6 +80,8 @@ test("reopen QE world: interface mounted, banked test sources frozen, accretion 
   assert.ok(fs.existsSync(path.join(W, "modules/lexer/test/opaque/l.test.ts")), "banked tests present");
   const dw = JSON.parse(fs.readFileSync(path.join(R, "settings.json"), "utf8")).filesystem.denyWrite;
   assert.ok(dw.some((p) => p.endsWith("test/opaque/l.test.ts")), "banked test source frozen");
+  assert.ok(dw.some((p) => p.endsWith("modules/lexer/index.d.ts")), "banked interface frozen");
+  assert.ok(dw.some((p) => p.endsWith("modules/lexer/index.ts")), "stub-shadowing the interface denied");
   assert.match(fs.readFileSync(path.join(W, "MANDATE.md"), "utf8"), /FROZEN/);
 });
 

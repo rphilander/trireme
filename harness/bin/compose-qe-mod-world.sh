@@ -50,6 +50,11 @@ if [ -d "$TRUNK/modules/$MODULE" ]; then
   [ -d "$SRC/test" ] && cp -a "$SRC/test/." "$R/workspace/modules/$MODULE/test/"
   while IFS= read -r f; do FROZEN+=("$f"); done \
     < <(cd "$R/workspace" && find "modules/$MODULE/test" -name '*.ts' ! -name '*.d.ts' 2>/dev/null)
+  # the banked interface is frozen, and index.ts is denied so a stub
+  # can never shadow the real .d.ts (tsc prefers .ts)
+  while IFS= read -r f; do FROZEN+=("$f"); done \
+    < <(cd "$R/workspace" && find "modules/$MODULE" -maxdepth 1 \( -name '*.d.ts' -o -name 'index.js' \) 2>/dev/null)
+  FROZEN+=("modules/$MODULE/index.ts")
 fi
 
 for D in $DEPENDS; do bash "$BINDIR/mount-dep.sh" "$TRUNK" "$D" "$R/workspace" compose-qe-mod-world; done
@@ -122,14 +127,24 @@ Banked test files are FROZEN — test accretion mirrors code accretion:
 add tests, never edit; a wrong banked test is a finding for the retro,
 not something you repair silently.
 MD
-else cat <<'MD'
+else cat <<MD
 
 The module does not exist yet: your tests are born red and will first
-compile and run when the coding cohort delivers. Write them against
-the brief's interface EXACTLY — names, signatures, and behaviors as
-the brief states them. Lint your files; compilation comes later:
+RUN when the coding cohort delivers — but they must TYPECHECK now.
+First author **modules/$MODULE/index.ts** as a TYPED STUB of the
+brief's interface: ambient declarations only (\\`export declare const
+f: (…) => …;\\` — import types from #platform/values/*.js and from
+dependency interfaces; no implementations, no logic). The stub is
+your compile target, never banked — the coding cohort's real module
+supersedes it. It pins YOUR reading of the brief in types; your whole
+estate must be self-consistent against it. Before finishing, BOTH
+must be clean:
 
+    node node_modules/typescript/lib/tsc.js -p tsconfig.json --noEmit
     node platform/lint/check.js modules/$MODULE/test
+
+A suite that does not compile is not a claim about the module — it is
+noise the retro will refuse.
 MD
 fi
 cat <<MD
@@ -164,7 +179,7 @@ s={"filesystem":{
     "denyRead":[f"{H}/src",f"{H}/.ssh",f"{H}/.pi",f"{H}/.bashrc",f"{H}/.trireme-env",f"{H}/.profile",f"{H}/.npmrc",
                 f"{H}/.gitconfig",f"{H}/.git-credentials",f"{H}/.claude",f"{H}/.claude.json",f"{H}/.config"]
                 +[f"{H}/control-runs/{d}" for d in os.listdir(f"{H}/control-runs") if d!="$NAME"],
-    "allowWrite":[f"{W}/modules/$MODULE/test","/tmp",f"{R}/home"],
+    "allowWrite":[f"{W}/modules/$MODULE","/tmp",f"{R}/home"],
     "denyWrite":frozen,
    },
    "network":{"allowedDomains":["api.deepseek.com"],"deniedDomains":[]}}

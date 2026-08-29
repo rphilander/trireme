@@ -19,9 +19,21 @@ if [ "$MODE" = "qe" ]; then
   ls "$W/modules/$MODULE/test/doc/"*.test.ts >/dev/null 2>&1 || fail "no doc tests (test/doc/*.test.ts)"
   ls "$W/modules/$MODULE/test/opaque/"*.test.ts >/dev/null 2>&1 || fail "no opaque tests (test/opaque/*.test.ts)"
   L=$(cd "$W" && node platform/lint/check.js "modules/$MODULE/test" 2>&1) || fail "lint: $L"
+  # type floor: the estate must typecheck against the module surface it
+  # was written to — QE's brief-derived stub (index.ts, ambient
+  # declares) on bootstrap, the banked interface on reopen. A suite the
+  # coding cohort cannot compile is noise, not a claim. (The stub must
+  # be a checked .ts: a .d.ts stub sits under skipLibCheck and degrades
+  # every signature to an error-type that accepts anything.)
+  TYPED=""
+  if [ -f "$W/modules/$MODULE/index.ts" ] || [ -f "$W/modules/$MODULE/index.d.ts" ]; then
+    C=$(cd "$W" && node node_modules/typescript/lib/tsc.js -p tsconfig.json --noEmit 2>&1) \
+      || fail "estate not compile-clean: $(echo "$C" | head -5)"
+    TYPED=", typechecked"
+  fi
   NDOC=$(ls "$W/modules/$MODULE/test/doc/"*.test.ts | wc -l)
   NOP=$(ls "$W/modules/$MODULE/test/opaque/"*.test.ts | wc -l)
-  echo "OK: qe candidate — $NDOC doc test file(s), $NOP opaque test file(s), lint clean"
+  echo "OK: qe candidate — $NDOC doc test file(s), $NOP opaque test file(s), lint clean$TYPED"
   exit 0
 fi
 [ "$MODE" = "code" ] || fail "mode must be code|qe"
