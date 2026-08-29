@@ -22,6 +22,8 @@ done
 cp -r values/vendor payload/platform/values/vendor
 cp dist/lint/check.js payload/platform/lint/
 cp dist/ledger/ledger.js payload/platform/ledger/
+mkdir -p payload/platform/wave
+cp wave/rename.js wave/wave.js payload/platform/wave/
 cp ../CODE-CONTRACT.md payload/platform/
 # vendored toolchain (hardlink: large, immutable)
 cp -al node_modules/typescript payload/node_modules/typescript

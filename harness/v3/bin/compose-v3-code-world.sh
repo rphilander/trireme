@@ -77,11 +77,31 @@ cat <<MD
 You are the coder for ONE module: **$MODULE** (kind: ${KIND:-verb}),
 under the BANKLESS LEDGER: development is an append-only conversation
 in code. Published definitions are IMMUTABLE from birth — including
-anything you publish in this session. You never edit a published def:
-to fix or change one, ADD a successor (\`f2\`) and note the
-supersession; adjudication migrates tests and collects the orphan.
-The module's test estate is mounted read-only; the tests are claims,
-not obstacles.
+anything you publish in this session. You never edit a published def.
+To change one, run a SUPERSESSION WAVE:
+
+1. Author the successor(s) by hand (\`isVecV\` → \`isVecV2\`; any
+   shape, changed signatures welcome).
+2. Declare: modules/$MODULE/supersessions/<slug>.md — rationale prose
+   plus one \`SUPERSEDE: <old> -> <new>\` line per hand successor.
+3. \`node platform/wave/wave.js plan $MODULE modules/$MODULE/supersessions/<slug>.md\`
+   — the machine computes every published caller upstream and checks
+   it can generate their successors mechanically (same code, callee
+   names swapped). A clean plan VALIDATES your scope: all interface
+   changes are accounted for. An INCOMPLETE plan names the defs whose
+   call sites need your hand (a callee's signature changed) — author
+   those successors too and re-plan.
+4. \`... wave.js apply ...\` — mechanical successors and the migrated
+   test estate land in your workspace. Run the suite. Reds among
+   MIGRATED tests are the semantic delta of your change: intended →
+   file a challenge against that migrated test; unintended → keep
+   working.
+5. Deliver. Admission re-derives the wave and refuses any hand-edit
+   disguised as mechanical output.
+
+The module's published test estate is read-only (wave-migrated copies
+are the machine's, listed in the wave manifest); the tests are
+claims, not obstacles.
 
 ## This brief (verbatim)
 

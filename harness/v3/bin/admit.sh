@@ -111,9 +111,27 @@ code)
       challenges/*|decisions/*) refuse "published $f is immutable" ;;
     esac
   done
+  # supersession waves: verify each newly-declared wave; its manifest
+  # legitimizes the mechanically migrated estate files it lists
+  WAVE_FILES=" "
+  for f in ${ADDED[@]+"${ADDED[@]}"}; do
+    case "$f" in
+      modules/$MODULE/supersessions/*.md)
+        WV=$( cd "$W" && node platform/wave/wave.js verify "$MODULE" "$f" 2>&1 ) \
+          || refuse "wave: $WV"
+        MAN="$W/${f%.md}.manifest.json"
+        [ -f "$MAN" ] || refuse "wave declaration $f has no manifest (run wave apply)"
+        for m in $(python3 -c "import json;print(' '.join(json.load(open('$MAN')).get('migratedHashes',{})))"); do
+          WAVE_FILES="$WAVE_FILES$m "
+        done ;;
+    esac
+  done
   for f in ${ADDED[@]+"${ADDED[@]}"} ${MODIFIED[@]+"${MODIFIED[@]}"}; do
     case "$f" in
-      modules/$MODULE/test/*) refuse "coders never touch tests (got: $f); dispute via challenges/" ;;
+      modules/$MODULE/test/*)
+        case "$WAVE_FILES" in *" $f "*) ;; *)
+          refuse "coders never touch tests (got: $f); dispute via challenges/ (wave-migrated estate must appear in a wave manifest)" ;;
+        esac ;;
       modules/$MODULE/*) ;;
       challenges/*.md) ;;
       *) refuse "code may add module source and challenges only (got: $f)" ;;
