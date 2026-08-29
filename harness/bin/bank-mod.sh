@@ -82,6 +82,8 @@ fi
 # fix the merged context.
 RW=$(mktemp -d)
 bash "$BINDIR/../platform/bin/mk-workspace.sh" "$RW" > /dev/null
+bash "$BINDIR/scope-tsconfig.sh" "$RW" "$MODULE"
+cat "$RD/DEPENDS" 2>/dev/null > "$RW/.depends" || true
 cp -a "$WW/modules/$MODULE" "$RW/modules/$MODULE"
 DEPS=$(cat "$RD/DEPENDS" 2>/dev/null || true)
 if [ -n "$DEPS" ] && [ -d "$CAMPAIGN/trunk/current" ]; then

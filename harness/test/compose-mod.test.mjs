@@ -148,3 +148,20 @@ test("transitive runtime closure: dep's own imports mounted as runtime support",
   assert.match(bundle, /b = 1/, "transitive code inlined into the dep artifact");
   assert.ok(!bundle.includes("#modules/"), "no module specifiers survive bundling");
 });
+
+test("every mounted dependency is write-denied; .depends marker written", (t) => {
+  if (!fs.existsSync(path.join(PLATFORM, "payload/platform"))) { t.skip("payload not built"); return; }
+  const { H, GOAL } = fakeHome();
+  const C = mkCampaign(H);
+  const B = path.join(H, "b-deny.md");
+  write(B, "TYPE: cycle\nMODULE: parser\nKIND: verb\nDEPENDS: tokens\n\nBody.\n");
+  const r = compose(H, ["mw-deny", GOAL, B, C, "60"]);
+  assert.equal(r.code, 0, r.out);
+  const R = path.join(H, "control-runs/mw-deny");
+  const dw = JSON.parse(fs.readFileSync(path.join(R, "settings.json"), "utf8")).filesystem.denyWrite;
+  const mods = fs.readdirSync(path.join(R, "workspace/modules")).filter((m) => m !== "parser");
+  for (const m of mods) {
+    assert.ok(dw.some((p) => p.endsWith(`/modules/${m}`)), `dep ${m} must be write-denied`);
+  }
+  assert.equal(fs.readFileSync(path.join(R, "workspace/.depends"), "utf8").trim(), "tokens");
+});

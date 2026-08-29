@@ -26,6 +26,13 @@ if [ "$MODE" = "qe" ]; then
 fi
 [ "$MODE" = "code" ] || fail "mode must be code|qe"
 
+# undeclared imports are an escalation, never something a world can mask
+if [ -f "$W/.depends" ]; then
+  DECLARED="$(cat "$W/.depends") $MODULE"
+  BAD=$(grep -rhoE '#modules/[a-z0-9-]+' "$W/modules/$MODULE" --include='*.ts' 2>/dev/null | sed 's|#modules/||' | sort -u | \
+        while IFS= read -r m; do case " $DECLARED " in *" $m "*) ;; *) echo "$m";; esac; done)
+  [ -z "$BAD" ] || fail "undeclared dependency import(s): $(echo $BAD) — DEPENDS must be complete; file a challenge if the brief is wrong"
+fi
 C=$(cd "$W" && node node_modules/typescript/lib/tsc.js -p tsconfig.json 2>&1) \
   || fail "compile: $(echo "$C" | head -5)"
 L=$(cd "$W" && node platform/lint/check.js modules 2>&1) || fail "lint: $L"

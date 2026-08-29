@@ -30,6 +30,7 @@ case "$KIND" in noun|verb|shell) ;; *) echo "compose-qe-mod-world: KIND must be 
 rm -rf $R && mkdir -p $R/home/.pi/agent/extensions
 cp ~/src/trireme/experiments/kernel/extensions/trireme-shell.ts $R/home/.pi/agent/extensions/
 bash "$PLATFORM/bin/mk-workspace.sh" "$R/workspace" > /dev/null
+bash "$BINDIR/scope-tsconfig.sh" "$R/workspace" "$MODULE"
 
 TRUNK=$CAMPAIGN/trunk/current
 FROZEN=()

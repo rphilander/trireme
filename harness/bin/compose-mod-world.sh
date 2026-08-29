@@ -33,6 +33,7 @@ case "$KIND" in noun|verb|shell) ;; *) echo "compose-mod-world: KIND must be nou
 rm -rf $R && mkdir -p $R/home/.pi/agent/extensions
 cp ~/src/trireme/experiments/kernel/extensions/trireme-shell.ts $R/home/.pi/agent/extensions/
 bash "$PLATFORM/bin/mk-workspace.sh" "$R/workspace" > /dev/null
+bash "$BINDIR/scope-tsconfig.sh" "$R/workspace" "$MODULE"
 
 TRUNK=$CAMPAIGN/trunk/current
 FROZEN=()
@@ -49,6 +50,7 @@ fi
 # inlined by esbuild at compose time; #platform stays external/shared;
 # safe because the lint bans module state). Nothing else exists.
 for D in $DEPENDS; do bash "$BINDIR/mount-dep.sh" "$TRUNK" "$D" "$R/workspace" compose-mod-world; done
+echo "$DEPENDS" > "$R/workspace/.depends"
 
 
 {
