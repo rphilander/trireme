@@ -47,7 +47,9 @@ done
 # dedupe
 mapfile -t FILES < <(printf '%s\n' ${FILES[@]+"${FILES[@]}"} | sort -u)
 
-# referential integrity for defs: no surviving def or test references
+# referential integrity for defs: no surviving def or test references;
+# ALL violations reported at once so one corrected decision suffices
+RI_BAD=""
 LEDGER_JSON=$(cd "$RW" && node platform/ledger/ledger.js modules/* 2>/dev/null || echo '{}')
 for d in ${DEFS[@]+"${DEFS[@]}"}; do
   M=${d%% *}; NAME=${d#* }
@@ -69,7 +71,7 @@ print(' '.join(out))")
     for d2 in ${DEFS[@]+"${DEFS[@]}"}; do [ "$d2" = "$hm $hn" ] && ok=1; done
     [ "$ok" = 1 ] || SURVIVE="$SURVIVE $h"
   done
-  [ -z "$SURVIVE" ] || refuse "referential integrity: $M#$NAME still referenced by:$SURVIVE (collect them in the same decision)"
+  [ -z "$SURVIVE" ] || RI_BAD="$RI_BAD | $M#$NAME still referenced by:$SURVIVE"
   while IFS= read -r t; do
     rel=${t#"$RW/"}
     keep=1
@@ -79,6 +81,8 @@ print(' '.join(out))")
     fi
   done < <(find "$RW/modules" -path '*/test/*' -name '*.test.ts' 2>/dev/null)
 done
+
+[ -z "$RI_BAD" ] || refuse "referential integrity: ${RI_BAD# | } (collect them in the same decision)"
 
 # stage: remove files, excise defs; then no-new-compile-errors floor
 ERRS_BEFORE=$( (cd "$RW" && node node_modules/typescript/lib/tsc.js -p tsconfig.json --noEmit 2>&1 || true) | grep -c 'error TS' || true)

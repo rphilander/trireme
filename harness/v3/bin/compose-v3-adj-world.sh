@@ -22,6 +22,7 @@ cp "$BRIEF" "$R/workspace/frontier/brief.md"
 bash "$BINDIR/accounting.sh" "$CAMPAIGN" > "$R/workspace/frontier/ACCOUNTING.json"
 [ -f "$CAMPAIGN/verdicts.jsonl" ] && cp "$CAMPAIGN/verdicts.jsonl" "$R/workspace/frontier/verdicts.jsonl"
 [ -d "$CAMPAIGN/verdict-logs" ] && cp -a "$CAMPAIGN/verdict-logs" "$R/workspace/frontier/verdict-logs"
+[ -d "$CAMPAIGN/refusals" ] && ls "$CAMPAIGN/refusals"/*.txt >/dev/null 2>&1 && cp -a "$CAMPAIGN/refusals" "$R/workspace/frontier/refusals"
 NEXTNUM=$(printf '%04d' $(( $(ls "$R/workspace/decisions"/*.md 2>/dev/null | wc -l) + 1 )))
 
 {
@@ -86,6 +87,11 @@ Principles you enforce:
   type (platform Brand) so the checker, and therefore the wave's
   frontier, sees the semantic change. Mechanical migration past a
   semantic break is the failure mode this standard exists to stop.
+- If frontier/refusals/ exists, a PRIOR DECISION'S COLLECTION WAS
+  MECHANICALLY REFUSED (it names every unsatisfied reference). Your
+  decision must issue the CORRECTED collection — the full superseded
+  generation together; a wave's manifest (modules/<M>/supersessions/
+  *.manifest.json, field "swap") enumerates every predecessor.
 - Immutability is absolute: never direct anyone to edit a published
   artifact; every correction is supersede-and-collect.
 

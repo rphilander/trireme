@@ -94,8 +94,18 @@ while :; do
   [ -n "$DEC" ] || { say "ESCALATE: adjudication admitted no decision"; exit 1; }
   say "DECISION: $DEC"
   if grep -qE '^(COLLECT|COLLECT-DEF):' "$CAMPAIGN/history/$DEC"; then
-    run bash "$BINDIR/execute-decision.sh" "$CAMPAIGN" "$DEC"
-    run bash "$BINDIR/verdicts.sh" "$CAMPAIGN"
+    EXOUT=""
+    if EXOUT=$(bash "$BINDIR/execute-decision.sh" "$CAMPAIGN" "$DEC" 2>&1); then
+      echo "$EXOUT" >> "$LOG"; say "$(echo "$EXOUT" | tail -1)"
+      rm -f "$CAMPAIGN/refusals/"*.txt 2>/dev/null || true
+      run bash "$BINDIR/verdicts.sh" "$CAMPAIGN"
+    else
+      echo "$EXOUT" >> "$LOG"
+      mkdir -p "$CAMPAIGN/refusals"
+      { echo "DECISION: $DEC"; echo "$EXOUT"; } > "$CAMPAIGN/refusals/$(basename "$DEC" .md).txt"
+      say "COLLECTION REFUSED for $DEC — reconvening adjudication with the refusal"
+      continue
+    fi
   fi
   if grep -q '^DONE:' "$CAMPAIGN/history/$DEC"; then
     A=$(bash "$BINDIR/accounting.sh" "$CAMPAIGN")
