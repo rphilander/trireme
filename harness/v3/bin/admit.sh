@@ -89,7 +89,12 @@ tests)
   V=$(bash "$V2BIN/validate-mod.sh" "$W" "$MODULE" qe 2>&1) || refuse "floor: $V"
   ;;
 code)
-  [ -n "$MODULE" ] || refuse "code delivery touches no module"
+  # a challenge-only delivery (dispute without code change) is legal
+  if [ -z "$MODULE" ]; then
+    CH=0
+    for f in ${ADDED[@]+"${ADDED[@]}"}; do case "$f" in challenges/*.md) CH=1 ;; *) refuse "code may add module source and challenges only (got: $f)" ;; esac; done
+    [ "$CH" = 1 ] || refuse "code delivery touches no module and files no challenge"
+  fi
   for f in ${ADDED[@]+"${ADDED[@]}"} ${MODIFIED[@]+"${MODIFIED[@]}"}; do
     case "$f" in
       modules/$MODULE/test/*) refuse "coders never touch tests (got: $f); dispute via challenges/" ;;
@@ -99,6 +104,7 @@ code)
     esac
   done
   # def-level accretion: file edits are legal iff the ledger sees adds only
+  if [ -z "$MODULE" ]; then :; else
   BASE=$(mktemp)
   if [ -d "$TIP/modules/$MODULE" ] && ls "$TIP/modules/$MODULE"/*.ts >/dev/null 2>&1; then
     ( cd "$TIP" && node "$W/platform/ledger/ledger.js" "modules/$MODULE" > "$BASE" 2>/dev/null ) || BASE=""
@@ -113,6 +119,7 @@ code)
         || refuse "accretion violation — published definitions edited in place: $(echo "$D" | tail -1)"
     fi
   }
+  fi
   for f in ${ADDED[@]+"${ADDED[@]}"}; do
     case "$f" in challenges/*.md)
       [ -s "$W/$f" ] || refuse "empty challenge: $f"
