@@ -9,6 +9,7 @@
  * directory plus tsc.
  */
 import { List, Map as IMap, Set as ISet, is, hash as backingHash, } from './vendor/immutable/immutable.es.js';
+export const brand = (v) => v;
 // ---------------------------------------------------------------------------
 // Records: heterogeneous typed shapes over persistent maps.
 export const rec = (fields) => IMap(fields);

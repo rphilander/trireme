@@ -87,3 +87,24 @@ closure-hash accretion (additions + orphan deletions only); node-count
 and definition ledgers; your module's suite; the global no-regression
 grade. Test all of it yourself before finishing — the same tools are
 in your world.
+
+
+## Branded scalars — types carry semantics
+
+A scalar that MEANS something (a heap id, a line number, a char
+code, a token index) crosses a function boundary as a branded type:
+
+    import { type Brand, brand } from '#platform/values/core.js';
+    export type HeapId = Brand<number, 'heap-id'>;
+    export const asHeapId = (n: number): HeapId => brand(n);
+
+Branded values participate in arithmetic and the Value domain
+normally; raw scalars and other brands do not flow in. Bare
+`number`/`string` boundaries are for genuinely dimensionless values
+only.
+
+THE SUPERSESSION COROLLARY: when a quantity's meaning changes, its
+brand changes. A successor that reinterprets a value under an
+unchanged type would let a wave migrate callers mechanically past a
+semantic break — the brand makes the checker refuse, so the wave's
+frontier is the SEMANTIC frontier.

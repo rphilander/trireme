@@ -80,6 +80,12 @@ Principles you enforce:
   place, a pin the platform cannot honor, scope that belongs
   elsewhere), say so explicitly in your decision prose — the plan is
   a prior, not a law, and your notes are how it improves.
+- TYPES CARRY SEMANTICS: when reviewing a wave, check whether any
+  successor changed a value's MEANING under an unchanged type (same
+  scalar, new interpretation). That is a finding — demand a branded
+  type (platform Brand) so the checker, and therefore the wave's
+  frontier, sees the semantic change. Mechanical migration past a
+  semantic break is the failure mode this standard exists to stop.
 - Immutability is absolute: never direct anyone to edit a published
   artifact; every correction is supersede-and-collect.
 

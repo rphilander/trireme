@@ -31,6 +31,19 @@ export interface VSet<T extends Value> { readonly [VSET]: T }
 export interface Rec<S extends RecShape> { readonly [REC]: S }
 
 export type Scalar = null | boolean | number | string;
+
+/**
+ * Branded scalars — semantic identity for domain quantities. A
+ * `Brand<number, 'heap-id'>` is a number at runtime (arithmetic and
+ * Value contexts accept it) but a DISTINCT type to the checker: raw
+ * scalars and other brands do not flow in. When a quantity's MEANING
+ * changes, its brand must change — that is what lets supersession
+ * waves discover semantic frontiers through the type checker.
+ */
+declare const BRAND: unique symbol;
+export type Brand<T extends Scalar, Name extends string> = T & { readonly [BRAND]: Name };
+export const brand = <T extends Scalar, N extends string>(v: T): Brand<T, N> =>
+  v as Brand<T, N>;
 export type RecShape = { readonly [k: string]: Value };
 export type Value =
   | Scalar
