@@ -58,6 +58,7 @@ for d in $HOME/control-runs/v3q-$SLUG-* $HOME/control-runs/v3c-$SLUG-* $HOME/con
   i=${d##*-}
   case "$i" in *[!0-9]*) ;; *) [ "$i" -gt "$N" ] && N=$i ;; esac
 done
+[ "$DRY" = 1 ] || run bash "$BINDIR/close-depends.sh" "$CAMPAIGN" "briefs/$SLUG.md"
 say "=== ledger conversation: brief=$SLUG module=$MODULE max=$MAX dry=$DRY start=$((N+1))"
 next_session(){ N=$((N+1)); [ "$N" -le "$MAX" ] || { say "ESCALATE: session cap $MAX reached"; exit 1; }; }
 
