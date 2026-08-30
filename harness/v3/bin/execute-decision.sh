@@ -47,6 +47,22 @@ done
 # dedupe
 mapfile -t FILES < <(printf '%s\n' ${FILES[@]+"${FILES[@]}"} | sort -u)
 
+# absent targets first: a COLLECT-DEF naming a def not at tip (already
+# collected, or never a top-level def) refuses with a legible list so
+# the corrected decision simply drops those lines
+ABSENT=""
+for d in ${DEFS[@]+"${DEFS[@]}"}; do
+  M=${d%% *}; NAME=${d#* }
+  FOUND=0
+  for f in "$RW/modules/$M"/*.ts; do
+    [ -f "$f" ] || continue
+    case "$f" in *.d.ts) continue ;; esac
+    grep -qE "(^|[[:space:]])(const|function|type|interface)[[:space:]]+$NAME\b" "$f" && FOUND=1
+  done
+  [ "$FOUND" = 1 ] || ABSENT="$ABSENT $M#$NAME"
+done
+[ -z "$ABSENT" ] || refuse "COLLECT-DEF target(s) not at tip (already collected, or never top-level):$ABSENT — drop these lines from the corrected decision"
+
 # referential integrity for defs: no surviving def or test references;
 # ALL violations reported at once so one corrected decision suffices
 RI_BAD=""
