@@ -19,13 +19,15 @@ refuse(){ echo "REFUSE: $*"; exit 1; }
 exec 9>"$CAMPAIGN/.campaign.lock"; flock 9
 
 FILES=(); DEFS=()
+norm(){ echo "$1" | xargs | sed -E 's/^\(none\)$|^none$|^-$//'; }
 while IFS= read -r ln; do
   case "$ln" in
-    COLLECT:*) FILES+=("$(echo "${ln#COLLECT:}" | xargs)") ;;
-    COLLECT-DEF:*) DEFS+=("$(echo "${ln#COLLECT-DEF:}" | xargs)") ;;
+    COLLECT:*) T=$(norm "${ln#COLLECT:}"); [ -n "$T" ] && FILES+=("$T") ;;
+    COLLECT-DEF:*) T=$(norm "${ln#COLLECT-DEF:}"); [ -n "$T" ] && DEFS+=("$T") ;;
   esac
 done < "$HIST/$DEC"
-[ $((${#FILES[@]} + ${#DEFS[@]})) -gt 0 ] || refuse "decision has no collection directives"
+# a decision whose collection lines all normalize away is a no-op, not a refusal
+[ $((${#FILES[@]} + ${#DEFS[@]})) -gt 0 ] || { echo "COLLECTED: nothing (no-op decision $DEC)"; exit 0; }
 
 # staged execution in a tip checkout; floors before history mutates
 RW=$(mktemp -d)
