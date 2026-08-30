@@ -100,11 +100,14 @@ cat <<MD
 
 - test/doc/*.test.ts — executable documentation, part of the
   interface; exemplary, small in number.
-- test/*.ts helpers and fixtures are welcome estate files (shared
-  builders, tables); immutable once published, like tests.
-- test/opaque/*.test.ts — edge cases, failure modes, invariants; the
-  majority. Failure messages must state expected vs observed clearly
-  enough to guide a fix without revealing the check.
+- test/opaque/*.test.ts — the OPAQUE BATTERY: edge cases, failure
+  modes, invariants; the majority of the suite. Failure messages
+  must state expected vs observed clearly enough to guide a fix
+  without revealing the check.
+- Shared helpers/fixtures (non-test .ts) may live at test/ root;
+  immutable once published, like tests. EVERY *.test.ts file lives
+  in doc/ or opaque/ — never at test/ root; the floor refuses an
+  estate without an opaque battery at test/opaque/.
 
 node:test + node:assert/strict; import '#modules/$MODULE/index.js';
 platform/CODE-CONTRACT.md applies to test code.

@@ -61,11 +61,22 @@ done
 say "=== ledger conversation: brief=$SLUG module=$MODULE max=$MAX dry=$DRY start=$((N+1))"
 next_session(){ N=$((N+1)); [ "$N" -le "$MAX" ] || { say "ESCALATE: session cap $MAX reached"; exit 1; }; }
 
-qe_session(){
-  next_session
-  run bash "$BINDIR/compose-v3-qe-world.sh" "v3q-$SLUG-$N" "$GOALF" "$BRIEF" "$CAMPAIGN" 45
-  launch "v3q-$SLUG-$N" 2700
-  admit_tolerant "v3q-$SLUG-$N" tests
+qe_session(){ # one auto-retry on an opening refusal: agent slips are
+  # cheaper to re-derive than to escalate
+  local tries=0
+  while :; do
+    next_session
+    run bash "$BINDIR/compose-v3-qe-world.sh" "v3q-$SLUG-$N" "$GOALF" "$BRIEF" "$CAMPAIGN" 45
+    launch "v3q-$SLUG-$N" 2700
+    local out
+    if out=$(bash "$BINDIR/admit.sh" "$CAMPAIGN" "v3q-$SLUG-$N" tests 2>&1); then
+      say "$out"; break
+    fi
+    echo "$out" >> "$LOG"; tries=$((tries+1))
+    if [ "$tries" -ge 2 ]; then say "ESCALATE: admission refused $(echo "$out" | head -1)"; exit 1; fi
+    mv "$HOME/control-runs/v3q-$SLUG-$N" "$HOME/control-runs/v3q-$SLUG-$N-refused" 2>/dev/null || true
+    say "RETRY: qe delivery refused ($(echo "$out" | head -1 | head -c 120)) — fresh cohort"
+  done
   run bash "$BINDIR/verdicts.sh" "$CAMPAIGN"
 }
 code_session(){
